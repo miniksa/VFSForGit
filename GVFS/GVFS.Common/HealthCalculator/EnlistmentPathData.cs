@@ -157,7 +157,7 @@ namespace GVFS.Common
 
                     modifiedPathsList = modifiedPathsResponse.Body.Split(new char[] { '\0' }, StringSplitOptions.RemoveEmptyEntries);
                 }
-                catch (BrokenPipeException e)
+                catch (BrokenPipeException)
                 {
                     return false;
                 }

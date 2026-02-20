@@ -395,7 +395,7 @@ namespace GVFS.CommandLine
 
                     if (refs == null)
                     {
-                        return new Result("Could not query info/refs from: " + Uri.EscapeUriString(enlistment.RepoUrl));
+                        return new Result("Could not query info/refs from: " + Uri.EscapeDataString(enlistment.RepoUrl));
                     }
 
                     if (this.Branch == null)
