@@ -53,8 +53,9 @@ namespace GVFS.FunctionalTests.Properties
                 string tfm = "net10.0-windows10.0.17763.0";
                 string rid = "win-x64";
                 string outRoot = @"D:\src\out";
-                PathToGVFS = Path.Combine(outRoot, "GVFS", "bin", buildConfig, tfm, rid, "GVFS.exe");
-                PathToGVFSService = Path.Combine(outRoot, "GVFS.Service", "bin", buildConfig, tfm, rid, "GVFS.Service.exe");
+                string gvfsBinDir = Path.Combine(outRoot, "GVFS", "bin", buildConfig, tfm, rid);
+                PathToGVFS = Path.Combine(gvfsBinDir, "GVFS.exe");
+                PathToGVFSService = Path.Combine(gvfsBinDir, "GVFS.Service.exe");
 
                 PathToGit = @"C:\Program Files\Git\cmd\git.exe";
                 PathToBash = @"C:\Program Files\Git\bin\bash.exe";

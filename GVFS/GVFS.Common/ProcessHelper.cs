@@ -26,8 +26,22 @@ namespace GVFS.Common
 
         public static string GetCurrentProcessLocation()
         {
+            // On .NET Core, Assembly.Location may return empty for single-file or self-contained apps.
+            // Fall back to AppContext.BaseDirectory or the process path.
             Assembly assembly = Assembly.GetExecutingAssembly();
-            return Path.GetDirectoryName(assembly.Location);
+            string location = assembly.Location;
+            if (!string.IsNullOrEmpty(location))
+            {
+                return Path.GetDirectoryName(location);
+            }
+
+            string processPath = Environment.ProcessPath;
+            if (!string.IsNullOrEmpty(processPath))
+            {
+                return Path.GetDirectoryName(processPath);
+            }
+
+            return AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
         }
 
         public static string GetEntryClassName()
