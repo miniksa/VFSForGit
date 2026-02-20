@@ -30,6 +30,8 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <GenerateProgramFile>false</GenerateProgramFile>
+    <!-- Self-contained deployment: bundle the .NET runtime so no runtime install is needed -->
+    <SelfContained>true</SelfContained>
   </PropertyGroup>
 
   <!-- Native project properties -->
