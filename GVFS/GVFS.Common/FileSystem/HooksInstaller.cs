@@ -22,7 +22,12 @@ namespace GVFS.Common.FileSystem
 
         static HooksInstaller()
         {
-            ExecutingDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            // On .NET Core, Assembly.Location can return empty for self-contained apps.
+            // Fall back to ProcessHelper which handles this.
+            string location = Assembly.GetExecutingAssembly().Location;
+            ExecutingDirectory = !string.IsNullOrEmpty(location)
+                ? Path.GetDirectoryName(location)
+                : ProcessHelper.GetCurrentProcessLocation();
         }
 
         public static string MergeHooksData(string[] defaultHooksLines, string filename, string hookName)

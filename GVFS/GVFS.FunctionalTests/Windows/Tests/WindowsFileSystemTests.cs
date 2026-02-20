@@ -664,6 +664,13 @@ namespace GVFS.FunctionalTests.Windows.Windows.Tests
         {
             FileSystemRunner fileSystem = FileSystemRunner.DefaultRunner;
             string newVirtualFolderPath = this.Enlistment.GetVirtualPathTo("new_folder");
+
+            // Clean up from any prior failed test run
+            if (fileSystem.DirectoryExists(newVirtualFolderPath))
+            {
+                fileSystem.DeleteDirectory(newVirtualFolderPath);
+            }
+
             newVirtualFolderPath.ShouldNotExistOnDisk(fileSystem);
             fileSystem.CreateDirectory(newVirtualFolderPath);
             newVirtualFolderPath.ShouldBeADirectory(fileSystem);

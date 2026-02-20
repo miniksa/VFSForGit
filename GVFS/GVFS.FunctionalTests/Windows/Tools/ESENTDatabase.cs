@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using Microsoft.Isam.Esent.Collections.Generic;
@@ -64,7 +65,10 @@ namespace GVFS.FunctionalTests.Windows.Tools
 
         private static string GetTestDataPath(string fileName)
         {
-            string workingDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string location = Assembly.GetExecutingAssembly().Location;
+            string workingDirectory = !string.IsNullOrEmpty(location)
+                ? Path.GetDirectoryName(location)
+                : AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
             return Path.Combine(workingDirectory, "Windows", "TestData", fileName);
         }
     }

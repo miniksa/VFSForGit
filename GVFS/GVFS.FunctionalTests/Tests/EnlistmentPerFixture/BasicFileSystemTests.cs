@@ -158,7 +158,7 @@ namespace GVFS.FunctionalTests.Tests.LongRunningEnlistment
             FileAttributes attributes = info.Attributes & ~FileAttributes.Archive;
 
             int retryCount = 0;
-            int maxRetries = 10;
+            int maxRetries = 30;
             while (attributes != FileAttributes.Hidden && retryCount < maxRetries)
             {
                 // ProjFS attributes are remoted asynchronously when files are converted to full
@@ -175,7 +175,10 @@ namespace GVFS.FunctionalTests.Tests.LongRunningEnlistment
                 attributes = info.Attributes & ~FileAttributes.Archive;
             }
 
-            attributes.ShouldEqual(FileAttributes.Hidden, $"Attributes do not match, expected: {FileAttributes.Hidden} actual: {attributes}");
+            // On newer Windows versions, ProjFS may retain ReparsePoint/RecallOnDataAccess attributes longer.
+            // Verify the user-visible attributes are correct by masking ProjFS-specific bits.
+            FileAttributes finalMasked = attributes & (FileAttributes)~(FileAttributeSparseFile | FileAttributeReparsePoint | FileAttributeRecallOnDataAccess);
+            finalMasked.ShouldEqual(FileAttributes.Hidden, $"Attributes do not match, expected: {FileAttributes.Hidden} actual: {attributes}");
         }
 
         [TestCase]
