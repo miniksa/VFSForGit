@@ -32,7 +32,7 @@
     <GenerateProgramFile>false</GenerateProgramFile>
     <!-- Self-contained deployment: bundle the .NET runtime so no runtime install is needed -->
     <SelfContained>true</SelfContained>
-    <!-- IL trimming: remove unused framework code to reduce deployment size -->
+    <!-- IL trimming applies only during 'dotnet publish' -->
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>partial</TrimMode>
     <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
