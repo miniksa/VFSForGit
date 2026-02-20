@@ -15,9 +15,9 @@ Test Files
     D:/src/out/GVFS.FunctionalTests/bin/Debug/net10.0-windows10.0.17763.0/win-x64/GVFS.FunctionalTests.dll
 
 Test Discovery
-  Start time: 2026-02-20 19:37:37Z
-    End time: 2026-02-20 19:37:37Z
-    Duration: 0.043 seconds
+  Start time: 2026-02-20 19:43:35Z
+    End time: 2026-02-20 19:43:36Z
+    Duration: 0.045 seconds
 
 Test Filters
     Where: cat!=ExtraCoverage&&cat!=NeedsReactionInCI
