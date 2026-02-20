@@ -147,7 +147,14 @@ namespace GVFS.Mount
 
                 this.MountAndStartWorkingDirectoryCallbacks(this.cacheServer);
 
-                Console.Title = "GVFS " + ProcessHelper.GetCurrentProcessVersion() + " - " + this.enlistment.EnlistmentRoot;
+                try
+                {
+                    Console.Title = "GVFS " + ProcessHelper.GetCurrentProcessVersion() + " - " + this.enlistment.EnlistmentRoot;
+                }
+                catch (IOException)
+                {
+                    // Console.Title throws when the process has no console (e.g. started as background/hidden process)
+                }
 
                 this.tracer.RelatedEvent(
                     EventLevel.Informational,

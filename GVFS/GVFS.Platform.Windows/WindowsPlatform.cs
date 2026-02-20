@@ -144,7 +144,8 @@ namespace GVFS.Platform.Windows
             {
                 programArguments = string.Join(" ", args.Select(arg => arg.Contains(' ') ? "\"" + arg + "\"" : arg));
                 ProcessStartInfo processInfo = new ProcessStartInfo(programName, programArguments);
-                processInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                processInfo.CreateNoWindow = true;
+                processInfo.UseShellExecute = false;
 
                 Process executingProcess = new Process();
                 executingProcess.StartInfo = processInfo;
