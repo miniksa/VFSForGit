@@ -26,6 +26,10 @@
     <PlatformTarget>x64</PlatformTarget>
     <BaseOutputPath>$(ProjectOutPath)bin\</BaseOutputPath>
     <BaseIntermediateOutputPath>$(ProjectOutPath)obj\</BaseIntermediateOutputPath>
+    <UseWindowsForms>false</UseWindowsForms>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
 
   <!-- Native project properties -->
