@@ -228,4 +228,4 @@ ModelManifest.xml
 .vscode/
 
 # ProjFS Kext Unit Test coverage results
-ProjFS.Mac/CoverageResult.txt
+ProjFS.Mac/CoverageResult.txt*.txt
