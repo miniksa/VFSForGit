@@ -25,4 +25,11 @@
     <Copy SourceFiles="@(_IjwHostFile->'%(FullPath)')" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" Condition="'@(_IjwHostFile)' != ''" />
   </Target>
 
+  <Target Name="_CopyIjwHostPublish" AfterTargets="Publish" Condition="'$(MSBuildProjectExtension)' == '.csproj' AND '$(OutputType)' == 'Exe'">
+    <ItemGroup>
+      <_IjwHostFilePublish Include="$(NetCoreTargetingPackRoot)\Microsoft.NETCore.App.Host.win-x64\*\runtimes\win-x64\native\ijwhost.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_IjwHostFilePublish->'%(FullPath)')" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" Condition="'@(_IjwHostFilePublish)' != ''" />
+  </Target>
+
 </Project>
