@@ -25,13 +25,11 @@
       <OutputItemType>Content</OutputItemType>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </ProjectReference>
-    <ProjectReference Include="..\GVFS.NativeTests\GVFS.NativeTests.vcxproj">
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-    </ProjectReference>
-    <None Include="$(RepoOutPath)GVFS.NativeTests\bin\x64\$(Configuration)\GVFS.NativeTests.dll">
+    <!-- GVFS.NativeTests requires VS MSBuild for C++ - build separately if needed -->
+    <None Include="$(RepoOutPath)GVFS.NativeTests\bin\x64\$(Configuration)\GVFS.NativeTests.dll" Condition="Exists('$(RepoOutPath)GVFS.NativeTests\bin\x64\$(Configuration)\GVFS.NativeTests.dll')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="$(RepoOutPath)GVFS.NativeTests\bin\x64\$(Configuration)\GVFS.NativeTests.pdb">
+    <None Include="$(RepoOutPath)GVFS.NativeTests\bin\x64\$(Configuration)\GVFS.NativeTests.pdb" Condition="Exists('$(RepoOutPath)GVFS.NativeTests\bin\x64\$(Configuration)\GVFS.NativeTests.pdb')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
