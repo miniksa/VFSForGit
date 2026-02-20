@@ -32,4 +32,19 @@
     <Copy SourceFiles="@(_IjwHostFilePublish->'%(FullPath)')" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" Condition="'@(_IjwHostFilePublish)' != ''" />
   </Target>
 
+  <!--
+    Copy native C++ hook executables to managed project output directories.
+    These hooks are built separately with VS MSBuild (vcxproj) and need to be
+    co-located with GVFS.exe for clone/mount operations.
+  -->
+  <Target Name="_CopyNativeHooks" AfterTargets="Build" Condition="'$(MSBuildProjectName)' == 'GVFS' OR '$(MSBuildProjectName)' == 'GVFS.Mount' OR '$(MSBuildProjectName)' == 'FastFetch'">
+    <ItemGroup>
+      <_NativeHook Include="$(RepoOutPath)GitHooksLoader\bin\x64\$(Configuration)\GitHooksLoader.exe" />
+      <_NativeHook Include="$(RepoOutPath)GVFS.ReadObjectHook\bin\x64\$(Configuration)\GVFS.ReadObjectHook.exe" />
+      <_NativeHook Include="$(RepoOutPath)GVFS.PostIndexChangedHook\bin\x64\$(Configuration)\GVFS.PostIndexChangedHook.exe" />
+      <_NativeHook Include="$(RepoOutPath)GVFS.VirtualFileSystemHook\bin\x64\$(Configuration)\GVFS.VirtualFileSystemHook.exe" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_NativeHook)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" Condition="Exists('%(FullPath)')" />
+  </Target>
+
 </Project>
