@@ -35,6 +35,8 @@ namespace GVFS.Common.NamedPipes
 
             public class Response
             {
+                public Response() { }
+
                 public string MountStatus { get; set; }
                 public string EnlistmentRoot { get; set; }
                 public string LocalCacheRoot { get; set; }
@@ -203,6 +205,8 @@ namespace GVFS.Common.NamedPipes
 
             public class Request
             {
+                public Request() { }
+
                 public Request(string backupFolderPath, string folders)
                 {
                     this.Folders = folders;
@@ -226,6 +230,8 @@ namespace GVFS.Common.NamedPipes
 
             public class Response
             {
+                public Response() { }
+
                 public Response(string result)
                 {
                     this.Result = result;
@@ -300,6 +306,8 @@ namespace GVFS.Common.NamedPipes
         {
             public class Request
             {
+                public Request() { }
+
                 public const string Header = nameof(Notification);
 
                 public enum Identifier
@@ -336,6 +344,8 @@ namespace GVFS.Common.NamedPipes
 
         public class UnregisterRepoRequest
         {
+            public UnregisterRepoRequest() { }
+
             public const string Header = nameof(UnregisterRepoRequest);
 
             public string EnlistmentRoot { get; set; }
@@ -352,6 +362,8 @@ namespace GVFS.Common.NamedPipes
 
             public class Response : BaseResponse<UnregisterRepoRequest>
             {
+                public Response() { }
+
                 public static Response FromMessage(Message message)
                 {
                     return GVFSJsonOptions.Deserialize<Response>(message.Body);
@@ -361,6 +373,8 @@ namespace GVFS.Common.NamedPipes
 
         public class RegisterRepoRequest
         {
+            public RegisterRepoRequest() { }
+
             public const string Header = nameof(RegisterRepoRequest);
 
             public string EnlistmentRoot { get; set; }
@@ -378,6 +392,8 @@ namespace GVFS.Common.NamedPipes
 
             public class Response : BaseResponse<RegisterRepoRequest>
             {
+                public Response() { }
+
                 public static Response FromMessage(Message message)
                 {
                     return GVFSJsonOptions.Deserialize<Response>(message.Body);
@@ -387,6 +403,8 @@ namespace GVFS.Common.NamedPipes
 
         public class EnableAndAttachProjFSRequest
         {
+            public EnableAndAttachProjFSRequest() { }
+
             public const string Header = nameof(EnableAndAttachProjFSRequest);
 
             public string EnlistmentRoot { get; set; }
@@ -403,6 +421,8 @@ namespace GVFS.Common.NamedPipes
 
             public class Response : BaseResponse<EnableAndAttachProjFSRequest>
             {
+                public Response() { }
+
                 public static Response FromMessage(Message message)
                 {
                     return GVFSJsonOptions.Deserialize<Response>(message.Body);
@@ -412,6 +432,8 @@ namespace GVFS.Common.NamedPipes
 
         public class GetActiveRepoListRequest
         {
+            public GetActiveRepoListRequest() { }
+
             public const string Header = nameof(GetActiveRepoListRequest);
 
             public static GetActiveRepoListRequest FromMessage(Message message)
@@ -426,6 +448,8 @@ namespace GVFS.Common.NamedPipes
 
             public class Response : BaseResponse<GetActiveRepoListRequest>
             {
+                public Response() { }
+
                 public List<string> RepoList { get; set; }
 
                 public static Response FromMessage(Message message)
@@ -437,6 +461,8 @@ namespace GVFS.Common.NamedPipes
 
         public class BaseResponse<TRequest>
         {
+            public BaseResponse() { }
+
             public const string Header = nameof(TRequest) + ResponseSuffix;
 
             public CompletionState State { get; set; }
