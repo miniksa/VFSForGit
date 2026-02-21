@@ -354,8 +354,9 @@ namespace Microsoft.Windows.ProjFS
                 return (int)inst._requiredCallbacks.StartDirectoryEnumerationCallback(
                     pData->CommandId, *pEnumId, virtualPath, pData->TriggeringProcessId, processName);
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Trace.WriteLine($"[ProjFS] StartDirEnum EXCEPTION: {ex}");
                 return (int)HResult.InternalError;
             }
         }
@@ -384,8 +385,9 @@ namespace Microsoft.Windows.ProjFS
                 return (int)inst._requiredCallbacks.GetDirectoryEnumerationCallback(
                     pData->CommandId, *pEnumId, filterFileName, restartScan, results);
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Trace.WriteLine($"[ProjFS] GetDirEnum EXCEPTION: {ex}");
                 return (int)HResult.InternalError;
             }
         }
@@ -400,8 +402,9 @@ namespace Microsoft.Windows.ProjFS
                 return (int)inst._requiredCallbacks.GetPlaceholderInfoCallback(
                     pData->CommandId, virtualPath, pData->TriggeringProcessId, processName);
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Trace.WriteLine($"[ProjFS] GetPlaceholderInfo EXCEPTION: {ex}");
                 return (int)HResult.InternalError;
             }
         }

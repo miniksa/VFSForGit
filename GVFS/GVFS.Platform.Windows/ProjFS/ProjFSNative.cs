@@ -210,6 +210,9 @@ namespace Microsoft.Windows.ProjFS
             public uint OffsetToFirstStreamInfo;
             // VersionInfo
             public PRJ_PLACEHOLDER_VERSION_INFO VersionInfo;
+            // VariableData[1] — flexible array member in the native struct
+            // Must be included so that sizeof matches the native sizeof(PRJ_PLACEHOLDER_INFO) = 344
+            public byte VariableData;
         }
 
         [StructLayout(LayoutKind.Sequential)]
