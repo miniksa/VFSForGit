@@ -5,8 +5,9 @@ namespace GVFS.Common
 {
     /// <summary>
     /// Shared JsonSerializerOptions for the GVFS codebase.
-    /// Uses PropertyNameCaseInsensitive to match the behavior of
-    /// Newtonsoft.Json (which was case-insensitive by default).
+    /// Uses the source-generated GVFSJsonContext for trim-safe and AOT-compatible
+    /// JSON serialization. PropertyNameCaseInsensitive matches the legacy
+    /// Newtonsoft.Json behavior.
     /// </summary>
     public static class GVFSJsonOptions
     {
@@ -14,6 +15,7 @@ namespace GVFS.Common
         {
             PropertyNameCaseInsensitive = true,
             Converters = { new VersionConverter() },
+            TypeInfoResolverChain = { GVFSJsonContext.Default },
         };
     }
 }

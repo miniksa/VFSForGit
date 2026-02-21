@@ -1,5 +1,6 @@
 using GVFS.Common;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace GVFS.Virtualization.Background
 {
@@ -134,7 +135,7 @@ namespace GVFS.Virtualization.Background
 
         public override string ToString()
         {
-            return JsonSerializer.Serialize(this, GVFSJsonOptions.Default);
+            return JsonSerializer.Serialize(this, VirtualizationJsonContext.Default.FileSystemTask);
         }
     }
 }

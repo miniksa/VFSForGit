@@ -1,3 +1,4 @@
+using GVFS.Common;
 using System;
 using System.Text.Json;
 
@@ -27,7 +28,7 @@ namespace GVFS.GVFlt
             // Used by the logging in the upgrader
             public override string ToString()
             {
-                return JsonSerializer.Serialize(this);
+                return JsonSerializer.Serialize(this, GVFltJsonContext.Default.BackgroundGitUpdate);
             }
         }
     }

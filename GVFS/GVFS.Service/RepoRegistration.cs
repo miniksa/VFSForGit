@@ -24,7 +24,7 @@ namespace GVFS.Service
         {
             // System.Text.Json ignores missing members by default,
             // matching the previous MissingMemberHandling.Ignore behavior.
-            return JsonSerializer.Deserialize<RepoRegistration>(json, GVFSJsonOptions.Default);
+            return JsonSerializer.Deserialize<RepoRegistration>(json, ServiceJsonContext.Default.RepoRegistration);
         }
 
         public override string ToString()
@@ -39,7 +39,7 @@ namespace GVFS.Service
 
         public string ToJson()
         {
-            return JsonSerializer.Serialize(this, GVFSJsonOptions.Default);
+            return JsonSerializer.Serialize(this, ServiceJsonContext.Default.RepoRegistration);
         }
     }
 }
