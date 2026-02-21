@@ -46,12 +46,12 @@ namespace GVFS.Common.NamedPipes
 
                 public static Response FromJson(string json)
                 {
-                    return JsonSerializer.Deserialize<Response>(json, GVFSJsonOptions.Default);
+                    return (Response)JsonSerializer.Deserialize(json, typeof(Response), GVFSJsonContext.Default);
                 }
 
                 public string ToJson()
                 {
-                    return JsonSerializer.Serialize(this, GVFSJsonOptions.Default);
+                    return JsonSerializer.Serialize(this, typeof(Response), GVFSJsonContext.Default);
                 }
             }
         }
@@ -211,7 +211,7 @@ namespace GVFS.Common.NamedPipes
 
                 public static Request FromMessage(Message message)
                 {
-                    return JsonSerializer.Deserialize<Request>(message.Body, GVFSJsonOptions.Default);
+                    return (Request)JsonSerializer.Deserialize(message.Body, typeof(Request), GVFSJsonContext.Default);
                 }
 
                 public string Folders { get; }
@@ -220,7 +220,7 @@ namespace GVFS.Common.NamedPipes
 
                 public Message CreateMessage()
                 {
-                    return new Message(Dehydrate, JsonSerializer.Serialize(this, GVFSJsonOptions.Default));
+                    return new Message(Dehydrate, JsonSerializer.Serialize(this, typeof(Request), GVFSJsonContext.Default));
                 }
             }
 
@@ -239,12 +239,12 @@ namespace GVFS.Common.NamedPipes
 
                 public static Response FromMessage(Message message)
                 {
-                    return JsonSerializer.Deserialize<Response>(message.Body, GVFSJsonOptions.Default);
+                    return (Response)JsonSerializer.Deserialize(message.Body, typeof(Response), GVFSJsonContext.Default);
                 }
 
                 public Message CreateMessage()
                 {
-                    return new Message(this.Result, JsonSerializer.Serialize(this, GVFSJsonOptions.Default));
+                    return new Message(this.Result, JsonSerializer.Serialize(this, typeof(Response), GVFSJsonContext.Default));
                 }
             }
         }
@@ -259,7 +259,7 @@ namespace GVFS.Common.NamedPipes
             {
                 public Request(List<string> packIndexes)
                 {
-                    this.PackIndexList = JsonSerializer.Serialize(packIndexes, GVFSJsonOptions.Default);
+                    this.PackIndexList = JsonSerializer.Serialize(packIndexes, typeof(List<string>), GVFSJsonContext.Default);
                 }
 
                 public Request(Message message)
@@ -324,12 +324,12 @@ namespace GVFS.Common.NamedPipes
 
                 public static Request FromMessage(Message message)
                 {
-                    return JsonSerializer.Deserialize<Request>(message.Body, GVFSJsonOptions.Default);
+                    return (Request)JsonSerializer.Deserialize(message.Body, typeof(Request), GVFSJsonContext.Default);
                 }
 
                 public Message ToMessage()
                 {
-                    return new Message(Header, JsonSerializer.Serialize(this, GVFSJsonOptions.Default));
+                    return new Message(Header, JsonSerializer.Serialize(this, typeof(Request), GVFSJsonContext.Default));
                 }
             }
         }
@@ -342,19 +342,19 @@ namespace GVFS.Common.NamedPipes
 
             public static UnregisterRepoRequest FromMessage(Message message)
             {
-                return JsonSerializer.Deserialize<UnregisterRepoRequest>(message.Body, GVFSJsonOptions.Default);
+                return (UnregisterRepoRequest)JsonSerializer.Deserialize(message.Body, typeof(UnregisterRepoRequest), GVFSJsonContext.Default);
             }
 
             public Message ToMessage()
             {
-                return new Message(Header, JsonSerializer.Serialize(this, GVFSJsonOptions.Default));
+                return new Message(Header, JsonSerializer.Serialize(this, typeof(UnregisterRepoRequest), GVFSJsonContext.Default));
             }
 
             public class Response : BaseResponse<UnregisterRepoRequest>
             {
                 public static Response FromMessage(Message message)
                 {
-                    return JsonSerializer.Deserialize<Response>(message.Body, GVFSJsonOptions.Default);
+                    return (Response)JsonSerializer.Deserialize(message.Body, typeof(Response), GVFSJsonContext.Default);
                 }
             }
         }
@@ -368,19 +368,19 @@ namespace GVFS.Common.NamedPipes
 
             public static RegisterRepoRequest FromMessage(Message message)
             {
-                return JsonSerializer.Deserialize<RegisterRepoRequest>(message.Body, GVFSJsonOptions.Default);
+                return (RegisterRepoRequest)JsonSerializer.Deserialize(message.Body, typeof(RegisterRepoRequest), GVFSJsonContext.Default);
             }
 
             public Message ToMessage()
             {
-                return new Message(Header, JsonSerializer.Serialize(this, GVFSJsonOptions.Default));
+                return new Message(Header, JsonSerializer.Serialize(this, typeof(RegisterRepoRequest), GVFSJsonContext.Default));
             }
 
             public class Response : BaseResponse<RegisterRepoRequest>
             {
                 public static Response FromMessage(Message message)
                 {
-                    return JsonSerializer.Deserialize<Response>(message.Body, GVFSJsonOptions.Default);
+                    return (Response)JsonSerializer.Deserialize(message.Body, typeof(Response), GVFSJsonContext.Default);
                 }
             }
         }
@@ -393,19 +393,19 @@ namespace GVFS.Common.NamedPipes
 
             public static EnableAndAttachProjFSRequest FromMessage(Message message)
             {
-                return JsonSerializer.Deserialize<EnableAndAttachProjFSRequest>(message.Body, GVFSJsonOptions.Default);
+                return (EnableAndAttachProjFSRequest)JsonSerializer.Deserialize(message.Body, typeof(EnableAndAttachProjFSRequest), GVFSJsonContext.Default);
             }
 
             public Message ToMessage()
             {
-                return new Message(Header, JsonSerializer.Serialize(this, GVFSJsonOptions.Default));
+                return new Message(Header, JsonSerializer.Serialize(this, typeof(EnableAndAttachProjFSRequest), GVFSJsonContext.Default));
             }
 
             public class Response : BaseResponse<EnableAndAttachProjFSRequest>
             {
                 public static Response FromMessage(Message message)
                 {
-                    return JsonSerializer.Deserialize<Response>(message.Body, GVFSJsonOptions.Default);
+                    return (Response)JsonSerializer.Deserialize(message.Body, typeof(Response), GVFSJsonContext.Default);
                 }
             }
         }
@@ -416,12 +416,12 @@ namespace GVFS.Common.NamedPipes
 
             public static GetActiveRepoListRequest FromMessage(Message message)
             {
-                return JsonSerializer.Deserialize<GetActiveRepoListRequest>(message.Body, GVFSJsonOptions.Default);
+                return (GetActiveRepoListRequest)JsonSerializer.Deserialize(message.Body, typeof(GetActiveRepoListRequest), GVFSJsonContext.Default);
             }
 
             public Message ToMessage()
             {
-                return new Message(Header, JsonSerializer.Serialize(this, GVFSJsonOptions.Default));
+                return new Message(Header, JsonSerializer.Serialize(this, typeof(GetActiveRepoListRequest), GVFSJsonContext.Default));
             }
 
             public class Response : BaseResponse<GetActiveRepoListRequest>
@@ -430,7 +430,7 @@ namespace GVFS.Common.NamedPipes
 
                 public static Response FromMessage(Message message)
                 {
-                    return JsonSerializer.Deserialize<Response>(message.Body, GVFSJsonOptions.Default);
+                    return (Response)JsonSerializer.Deserialize(message.Body, typeof(Response), GVFSJsonContext.Default);
                 }
             }
         }
@@ -444,7 +444,7 @@ namespace GVFS.Common.NamedPipes
 
             public Message ToMessage()
             {
-                return new Message(Header, JsonSerializer.Serialize(this, GVFSJsonOptions.Default));
+                return new Message(Header, JsonSerializer.Serialize(this, this.GetType(), GVFSJsonContext.Default));
             }
         }
     }

@@ -349,7 +349,7 @@ namespace GVFS.Common.Tracing
                 Payload = JsonSerializer.Serialize(new Dictionary<string, string>
                 {
                     ["EventListener"] = recoveredListener.GetType().Name
-                }, GVFSJsonOptions.Default)
+                }, typeof(Dictionary<string, string>), GVFSJsonContext.Default)
             };
         }
 
@@ -365,13 +365,13 @@ namespace GVFS.Common.Tracing
                 {
                     ["EventListener"] = failedListener.GetType().Name,
                     ["ErrorMessage"] = errorMessage,
-                }, GVFSJsonOptions.Default)
+                }, typeof(Dictionary<string, string>), GVFSJsonContext.Default)
             };
         }
 
         private void WriteEvent(string eventName, EventLevel level, Keywords keywords, EventMetadata metadata, EventOpcode opcode)
         {
-            string jsonPayload = metadata != null ? JsonSerializer.Serialize(metadata, GVFSJsonOptions.Default) : null;
+            string jsonPayload = metadata != null ? JsonSerializer.Serialize(metadata, typeof(EventMetadata), GVFSJsonContext.Default) : null;
 
             if (this.isDisposed)
             {

@@ -145,12 +145,12 @@ namespace GVFS.Common.Tracing
 
             public static PipeMessage FromJson(string json)
             {
-                return JsonSerializer.Deserialize<PipeMessage>(json, GVFSJsonOptions.Default);
+                return (PipeMessage)JsonSerializer.Deserialize(json, typeof(PipeMessage), GVFSJsonContext.Default);
             }
 
             public string ToJson()
             {
-                return JsonSerializer.Serialize(this, GVFSJsonOptions.Default);
+                return JsonSerializer.Serialize(this, typeof(PipeMessage), GVFSJsonContext.Default);
             }
 
             public class PipeMessagePayload

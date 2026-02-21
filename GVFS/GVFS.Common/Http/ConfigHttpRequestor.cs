@@ -66,7 +66,7 @@ namespace GVFS.Common.Http
                         try
                         {
                             string configString = response.RetryableReadToEnd();
-                            ServerGVFSConfig config = JsonSerializer.Deserialize<ServerGVFSConfig>(configString, GVFSJsonOptions.Default);
+                            ServerGVFSConfig config = (ServerGVFSConfig)JsonSerializer.Deserialize(configString, typeof(ServerGVFSConfig), GVFSJsonContext.Default);
                             return new RetryWrapper<ServerGVFSConfig>.CallbackResult(config);
                         }
                         catch (JsonException e)

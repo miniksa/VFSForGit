@@ -82,7 +82,7 @@ namespace GVFS.Common.Http
                         }
 
                         string objectSizesString = response.RetryableReadToEnd();
-                        List<GitObjectSize> objectSizes = JsonSerializer.Deserialize<List<GitObjectSize>>(objectSizesString, GVFSJsonOptions.Default);
+                        List<GitObjectSize> objectSizes = (List<GitObjectSize>)JsonSerializer.Deserialize(objectSizesString, typeof(List<GitObjectSize>), GVFSJsonContext.Default);
                         return new RetryWrapper<List<GitObjectSize>>.CallbackResult(objectSizes);
                     }
                 });

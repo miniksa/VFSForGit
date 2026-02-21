@@ -96,6 +96,14 @@ namespace GVFS
             rootCommand.AddCommand(BuildUnmountCommand());
             rootCommand.AddCommand(BuildUpgradeCommand());
 
+            // Backward-compatible 'version' subcommand (old CLI used 'gvfs version')
+            var versionCmd = new Command("version", "Display version information");
+            versionCmd.SetHandler(() =>
+            {
+                Console.WriteLine("GVFS " + ProcessHelper.GetCurrentProcessVersion());
+            });
+            rootCommand.AddCommand(versionCmd);
+
             return rootCommand;
         }
 

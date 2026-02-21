@@ -140,8 +140,8 @@ namespace GVFS.Common.Prefetch
                 lastPrefetchArgs.TryGetValue(PrefetchArgs.Folders, out string lastFoldersString) &&
                 lastPrefetchArgs.TryGetValue(PrefetchArgs.Hydrate, out string lastHydrateString))
             {
-                string newFilesString = JsonSerializer.Serialize(files, GVFSJsonOptions.Default);
-                string newFoldersString = JsonSerializer.Serialize(folders, GVFSJsonOptions.Default);
+                string newFilesString = JsonSerializer.Serialize(files, typeof(List<string>), GVFSJsonContext.Default);
+                string newFoldersString = JsonSerializer.Serialize(folders, typeof(List<string>), GVFSJsonContext.Default);
                 bool isNoop =
                     commitId == lastCommitId &&
                     hydrateFilesAfterDownload.ToString() == lastHydrateString &&
@@ -587,8 +587,8 @@ namespace GVFS.Common.Prefetch
                     new[]
                     {
                         new KeyValuePair<string, string>(PrefetchArgs.CommitId, targetCommit),
-                        new KeyValuePair<string, string>(PrefetchArgs.Files, JsonSerializer.Serialize(this.FileList, GVFSJsonOptions.Default)),
-                        new KeyValuePair<string, string>(PrefetchArgs.Folders, JsonSerializer.Serialize(this.FolderList, GVFSJsonOptions.Default)),
+                        new KeyValuePair<string, string>(PrefetchArgs.Files, JsonSerializer.Serialize(this.FileList, typeof(List<string>), GVFSJsonContext.Default)),
+                        new KeyValuePair<string, string>(PrefetchArgs.Folders, JsonSerializer.Serialize(this.FolderList, typeof(List<string>), GVFSJsonContext.Default)),
                         new KeyValuePair<string, string>(PrefetchArgs.Hydrate, hydrate.ToString()),
                     });
             }

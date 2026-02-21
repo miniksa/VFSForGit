@@ -27,18 +27,10 @@ namespace GVFS.Common
         public static string GetCurrentProcessLocation()
         {
             // NativeAOT: Environment.ProcessPath is always reliable.
-            // Assembly.Location may return empty for single-file/NativeAOT apps.
             string processPath = Environment.ProcessPath;
             if (!string.IsNullOrEmpty(processPath))
             {
                 return Path.GetDirectoryName(processPath);
-            }
-
-            Assembly assembly = Assembly.GetExecutingAssembly();
-            string location = assembly.Location;
-            if (!string.IsNullOrEmpty(location))
-            {
-                return Path.GetDirectoryName(location);
             }
 
             return AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
