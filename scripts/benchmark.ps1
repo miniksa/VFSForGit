@@ -35,8 +35,8 @@ $ErrorActionPreference = "Continue"
 # --- Configuration ---
 $prodGVFS = "C:\Program Files\GVFS\GVFS.exe"
 if ($UsePublished) {
-    $net10GVFS = "D:\src\out\GVFS\bin\Release\net10.0-windows10.0.17763.0\win-x64\publish\GVFS.exe"
-    $net10Label = ".NET 10 (R2R+Trimmed)"
+    $net10GVFS = "D:\src\out\gvfs-aot-layout\GVFS.exe"
+    $net10Label = ".NET 10 (NativeAOT)"
 } else {
     $net10GVFS = "D:\src\out\GVFS\bin\Release\net10.0-windows10.0.17763.0\win-x64\GVFS.exe"
     $net10Label = ".NET 10 (JIT only)"
