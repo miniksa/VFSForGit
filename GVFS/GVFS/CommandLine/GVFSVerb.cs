@@ -1,4 +1,3 @@
-using CommandLine;
 using GVFS.Common;
 using GVFS.Common.FileSystem;
 using GVFS.Common.Git;
@@ -91,10 +90,6 @@ namespace GVFS.CommandLine
 
         public abstract string EnlistmentRootPathParameter { get; set; }
 
-        [Option(
-            GVFSConstants.VerbParameters.InternalUseOnly,
-            Required = false,
-            HelpText = "This parameter is reserved for internal use.")]
         public string InternalParameters
         {
             set
@@ -1036,13 +1031,7 @@ You can specify a URL, a name of a configured cache server, or the special names
             {
             }
 
-            [Value(
-                0,
-                Required = false,
-                Default = "",
-                MetaName = "Enlistment Root Path",
-                HelpText = "Full or relative path to the GVFS enlistment root")]
-            public override string EnlistmentRootPathParameter { get; set; }
+            public override string EnlistmentRootPathParameter { get; set; } = "";
 
             public sealed override void Execute()
             {

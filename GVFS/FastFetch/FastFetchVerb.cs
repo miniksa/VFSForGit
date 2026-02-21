@@ -1,5 +1,4 @@
-﻿using CommandLine;
-using GVFS.Common;
+﻿using GVFS.Common;
 using GVFS.Common.Git;
 using GVFS.Common.Http;
 using GVFS.Common.Prefetch;
@@ -8,7 +7,6 @@ using System;
 
 namespace FastFetch
 {
-    [Verb("fastfetch", HelpText = "Fast-fetch a branch")]
     public class FastFetchVerb
     {
         // Testing has shown that more than 16 download threads does not improve
@@ -19,130 +17,39 @@ namespace FastFetch
         private const int ExitFailure = 1;
         private const int ExitSuccess = 0;
 
-        [Option(
-            'c',
-            "commit",
-            Required = false,
-            HelpText = "Commit to fetch")]
         public string Commit { get; set; }
 
-        [Option(
-            'b',
-            "branch",
-            Required = false,
-            HelpText = "Branch to fetch")]
         public string Branch { get; set; }
 
-        [Option(
-            "cache-server-url",
-            Required = false,
-            Default = "",
-            HelpText = "Defines the url of the cache server")]
-        public string CacheServerUrl { get; set; }
+        public string CacheServerUrl { get; set; } = "";
 
-        [Option(
-            "chunk-size",
-            Required = false,
-            Default = 4000,
-            HelpText = "Sets the number of objects to be downloaded in a single pack")]
-        public int ChunkSize { get; set; }
+        public int ChunkSize { get; set; } = 4000;
 
-        [Option(
-            "checkout",
-            Required = false,
-            Default = false,
-            HelpText = "Checkout the target commit into the working directory after fetching")]
         public bool Checkout { get; set; }
 
-        [Option(
-            "force-checkout",
-            Required = false,
-            Default = false,
-            HelpText = "Force FastFetch to checkout content as if the current repo had just been initialized." +
-                       "This allows you to include more folders from the repo that were not originally checked out." +
-                       "Can only be used with the --checkout option.")]
         public bool ForceCheckout { get; set; }
 
-        [Option(
-            "search-thread-count",
-            Required = false,
-            Default = 0,
-            HelpText = "Sets the number of threads to use for finding missing blobs. (0 for number of logical cores)")]
         public int SearchThreadCount { get; set; }
 
-        [Option(
-            "download-thread-count",
-            Required = false,
-            Default = 0,
-            HelpText = "Sets the number of threads to use for downloading. (0 for number of logical cores)")]
         public int DownloadThreadCount { get; set; }
 
-        [Option(
-            "index-thread-count",
-            Required = false,
-            Default = 0,
-            HelpText = "Sets the number of threads to use for indexing. (0 for number of logical cores)")]
         public int IndexThreadCount { get; set; }
 
-        [Option(
-            "checkout-thread-count",
-            Required = false,
-            Default = 0,
-            HelpText = "Sets the number of threads to use for checkout. (0 for number of logical cores)")]
         public int CheckoutThreadCount { get; set; }
 
-        [Option(
-            'r',
-            "max-retries",
-            Required = false,
-            Default = 10,
-            HelpText = "Sets the maximum number of attempts for downloading a pack")]
+        public int MaxAttempts { get; set; } = 10;
 
-        public int MaxAttempts { get; set; }
+        public string GitBinPath { get; set; } = "";
 
-        [Option(
-            "git-path",
-            Default = "",
-            Required = false,
-            HelpText = "Sets the path and filename for git.exe if it isn't expected to be on %PATH%.")]
-        public string GitBinPath { get; set; }
+        public string FolderList { get; set; } = "";
 
-        [Option(
-            "folders",
-            Required = false,
-            Default = "",
-            HelpText = "A semicolon-delimited list of folders to fetch")]
-        public string FolderList { get; set; }
+        public string FolderListFile { get; set; } = "";
 
-        [Option(
-            "folders-list",
-            Required = false,
-            Default = "",
-            HelpText = "A file containing line-delimited list of folders to fetch")]
-        public string FolderListFile { get; set; }
-
-        [Option(
-            "Allow-index-metadata-update-from-working-tree",
-            Required = false,
-            Default = false,
-            HelpText = "When specified, index metadata (file times and sizes) is updated from disk if not already in the index.  " +
-                       "This flag should only be used when the working tree is known to be in a good state.  " +
-                       "Do not use this flag if the working tree is not 100% known to be good as it would cause 'git status' to misreport.")]
         public bool AllowIndexMetadataUpdateFromWorkingTree { get; set; }
 
-        [Option(
-            "verbose",
-            Required = false,
-            Default = false,
-            HelpText = "Show all outputs on the console in addition to writing them to a log file")]
         public bool Verbose { get; set; }
 
-        [Option(
-            "parent-activity-id",
-            Required = false,
-            Default = "",
-            HelpText = "The GUID of the caller - used for telemetry purposes.")]
-        public string ParentActivityId { get; set; }
+        public string ParentActivityId { get; set; } = "";
 
         public void Execute()
         {

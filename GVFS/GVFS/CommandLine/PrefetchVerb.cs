@@ -1,5 +1,4 @@
-﻿using CommandLine;
-using GVFS.Common;
+﻿using GVFS.Common;
 using GVFS.Common.FileSystem;
 using GVFS.Common.Git;
 using GVFS.Common.Http;
@@ -12,7 +11,6 @@ using System.IO;
 
 namespace GVFS.CommandLine
 {
-    [Verb(PrefetchVerb.PrefetchVerbName, HelpText = "Prefetch remote objects for the current head")]
     public class PrefetchVerb : GVFSVerb.ForExistingEnlistment
     {
         private const string PrefetchVerbName = "prefetch";
@@ -27,68 +25,22 @@ namespace GVFS.CommandLine
         private static readonly int DownloadThreadCount = Environment.ProcessorCount;
         private static readonly int IndexThreadCount = Environment.ProcessorCount;
 
-        [Option(
-            "files",
-            Required = false,
-            Default = "",
-            HelpText = "A semicolon-delimited list of files to fetch. Simple prefix wildcards, e.g. *.txt, are supported.")]
-        public string Files { get; set; }
+        public string Files { get; set; } = "";
 
-        [Option(
-            "folders",
-            Required = false,
-            Default = "",
-            HelpText = "A semicolon-delimited list of folders to fetch. Wildcards are not supported.")]
-        public string Folders { get; set; }
+        public string Folders { get; set; } = "";
 
-        [Option(
-            "folders-list",
-            Required = false,
-            Default = "",
-            HelpText = "A file containing line-delimited list of folders to fetch. Wildcards are not supported.")]
-        public string FoldersListFile { get; set; }
+        public string FoldersListFile { get; set; } = "";
 
-        [Option(
-            "stdin-files-list",
-            Required = false,
-            Default = false,
-            HelpText = "Specify this flag to load file list from stdin. Same format as when loading from file.")]
         public bool FilesFromStdIn { get; set; }
 
-        [Option(
-            "stdin-folders-list",
-            Required = false,
-            Default = false,
-            HelpText = "Specify this flag to load folder list from stdin. Same format as when loading from file.")]
         public bool FoldersFromStdIn { get; set; }
 
-        [Option(
-            "files-list",
-            Required = false,
-            Default = "",
-            HelpText = "A file containing line-delimited list of files to fetch. Wildcards are supported.")]
-        public string FilesListFile { get; set; }
+        public string FilesListFile { get; set; } = "";
 
-        [Option(
-            "hydrate",
-            Required = false,
-            Default = false,
-            HelpText = "Specify this flag to also hydrate files in the working directory.")]
         public bool HydrateFiles { get; set; }
 
-        [Option(
-            'c',
-            "commits",
-            Required = false,
-            Default = false,
-            HelpText = "Fetch the latest set of commit and tree packs. This option cannot be used with any of the file- or folder-related options.")]
         public bool Commits { get; set; }
 
-        [Option(
-            "verbose",
-            Required = false,
-            Default = false,
-            HelpText = "Show all outputs on the console in addition to writing them to a log file.")]
         public bool Verbose { get; set; }
 
         public bool SkipVersionCheck { get; set; }

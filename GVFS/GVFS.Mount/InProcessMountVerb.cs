@@ -1,5 +1,4 @@
-﻿using CommandLine;
-using GVFS.Common;
+﻿using GVFS.Common;
 using GVFS.Common.Git;
 using GVFS.Common.Http;
 using GVFS.Common.Tracing;
@@ -10,7 +9,6 @@ using System.Runtime.InteropServices;
 
 namespace GVFS.Mount
 {
-    [Verb("mount", HelpText = "Starts the background mount process")]
     public class InProcessMountVerb
     {
         private TextWriter output;
@@ -25,51 +23,16 @@ namespace GVFS.Mount
 
         public ReturnCode ReturnCode { get; private set; }
 
-        [Option(
-            'v',
-            GVFSConstants.VerbParameters.Mount.Verbosity,
-            Default = GVFSConstants.VerbParameters.Mount.DefaultVerbosity,
-            Required = false,
-            HelpText = "Sets the verbosity of console logging. Accepts: Verbose, Informational, Warning, Error")]
         public string Verbosity { get; set; }
 
-        [Option(
-            'k',
-            GVFSConstants.VerbParameters.Mount.Keywords,
-            Default = GVFSConstants.VerbParameters.Mount.DefaultKeywords,
-            Required = false,
-            HelpText = "A CSV list of logging filter keywords. Accepts: Any, Network")]
         public string KeywordsCsv { get; set; }
 
-        [Option(
-            'd',
-            GVFSConstants.VerbParameters.Mount.DebugWindow,
-            Default = false,
-            Required = false,
-            HelpText = "Show the debug window.  By default, all output is written to a log file and no debug window is shown.")]
         public bool ShowDebugWindow { get; set; }
 
-        [Option(
-            's',
-            GVFSConstants.VerbParameters.Mount.StartedByService,
-            Default = "false",
-            Required = false,
-            HelpText = "Service initiated mount.")]
-        public string StartedByService { get; set; }
+        public string StartedByService { get; set; } = "false";
 
-        [Option(
-            'b',
-            GVFSConstants.VerbParameters.Mount.StartedByVerb,
-            Default = false,
-            Required = false,
-            HelpText = "Verb initiated mount.")]
         public bool StartedByVerb { get; set; }
 
-        [Value(
-                0,
-                Required = true,
-                MetaName = "Enlistment Root Path",
-                HelpText = "Full or relative path to the GVFS enlistment root")]
         public string EnlistmentRootPathParameter { get; set; }
 
         public void InitializeDefaultParameterValues()

@@ -1,5 +1,4 @@
-﻿using CommandLine;
-using GVFS.Common;
+﻿using GVFS.Common;
 using GVFS.Common.Database;
 using GVFS.Common.FileSystem;
 using GVFS.Common.Git;
@@ -17,7 +16,6 @@ using System.Text;
 
 namespace GVFS.CommandLine
 {
-    [Verb(DehydrateVerb.DehydrateVerbName, HelpText = "EXPERIMENTAL FEATURE - Fully dehydrate a GVFS repo")]
     public class DehydrateVerb : GVFSVerb.ForExistingEnlistment
     {
         private const string DehydrateVerbName = "dehydrate";
@@ -25,26 +23,11 @@ namespace GVFS.CommandLine
 
         private PhysicalFileSystem fileSystem = new PhysicalFileSystem();
 
-        [Option(
-            "confirm",
-            Default = false,
-            Required = false,
-            HelpText = "Pass in this flag to actually do the dehydrate")]
         public bool Confirmed { get; set; }
 
-        [Option(
-            "no-status",
-            Default = false,
-            Required = false,
-            HelpText = "Do not require a clean git status when dehydrating. To prevent data loss, this option cannot be combined with --folders option.")]
         public bool NoStatus { get; set; }
 
-        [Option(
-            "folders",
-            Default = "",
-            Required = false,
-            HelpText = "A semicolon (" + FolderListSeparator + ") delimited list of folders to dehydrate. Each folder must be relative to the repository root.")]
-        public string Folders { get; set; }
+        public string Folders { get; set; } = "";
 
         public string RunningVerbName { get; set; } = DehydrateVerbName;
         public string ActionName { get; set; } = DehydrateVerbName;

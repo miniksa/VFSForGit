@@ -1,5 +1,4 @@
-﻿using CommandLine;
-using GVFS.Common;
+﻿using GVFS.Common;
 using GVFS.Common.FileSystem;
 using System;
 using System.Collections.Generic;
@@ -7,30 +6,15 @@ using System.Linq;
 
 namespace GVFS.CommandLine
 {
-    [Verb(HealthVerb.HealthVerbName, HelpText = "EXPERIMENTAL FEATURE - Measure the health of the repository")]
     public class HealthVerb : GVFSVerb.ForExistingEnlistment
     {
         private const string HealthVerbName = "health";
         private const decimal MaximumHealthyHydration = 0.5m;
 
-        [Option(
-            'n',
-            Required = false,
-            HelpText = "Only display the <n> most hydrated directories in the output")]
         public int DirectoryDisplayCount { get; set; } = 5;
 
-        [Option(
-            'd',
-            "directory",
-            Required = false,
-            HelpText = "Get the health of a specific directory (default is the current working directory")]
         public string Directory { get; set; }
 
-        [Option(
-            's',
-            "status",
-            Required = false,
-            HelpText = "Display only the hydration % of the repository, similar to 'git status' in a repository with sparse-checkout")]
         public bool StatusOnly { get; set; }
 
         protected override string VerbName => HealthVerbName;

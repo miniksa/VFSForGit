@@ -1,42 +1,20 @@
-﻿using CommandLine;
-using GVFS.Common;
+﻿using GVFS.Common;
 using System;
 using System.Collections.Generic;
 
 namespace GVFS.CommandLine
 {
-    [Verb(ConfigVerbName, HelpText = "Get and set GVFS options.")]
     public class ConfigVerb : GVFSVerb.ForNoEnlistment
     {
         private const string ConfigVerbName = "config";
         private LocalGVFSConfig localConfig;
 
-        [Option(
-            'l',
-            "list",
-            Required = false,
-            HelpText = "Show all settings")]
         public bool List { get; set; }
 
-        [Option(
-            'd',
-            "delete",
-            Required = false,
-            HelpText = "Name of setting to delete")]
         public string KeyToDelete { get; set; }
 
-        [Value(
-            0,
-            Required = false,
-            MetaName = "Setting name",
-            HelpText = "Name of setting that is to be set or read")]
         public string Key { get; set; }
 
-        [Value(
-            1,
-            Required = false,
-            MetaName = "Setting value",
-            HelpText = "Value of setting to be set")]
         public string Value { get; set; }
 
         protected override string VerbName

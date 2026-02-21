@@ -1,5 +1,4 @@
-﻿using CommandLine;
-using GVFS.Common;
+﻿using GVFS.Common;
 using GVFS.Common.FileSystem;
 using GVFS.Common.NamedPipes;
 using System;
@@ -9,30 +8,14 @@ using System.Linq;
 
 namespace GVFS.CommandLine
 {
-    [Verb(ServiceVerbName, HelpText = "Runs commands for the GVFS service.")]
     public class ServiceVerb : GVFSVerb.ForNoEnlistment
     {
         private const string ServiceVerbName = "service";
 
-        [Option(
-            "mount-all",
-            Default = false,
-            Required = false,
-            HelpText = "Mounts all repos")]
         public bool MountAll { get; set; }
 
-        [Option(
-            "unmount-all",
-            Default = false,
-            Required = false,
-            HelpText = "Unmounts all repos")]
         public bool UnmountAll { get; set; }
 
-        [Option(
-            "list-mounted",
-            Default = false,
-            Required = false,
-            HelpText = "Prints a list of all mounted repos")]
         public bool List { get; set; }
 
         protected override string VerbName

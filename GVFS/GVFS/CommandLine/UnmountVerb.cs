@@ -1,28 +1,15 @@
-﻿using CommandLine;
-using GVFS.Common;
+﻿using GVFS.Common;
 using GVFS.Common.NamedPipes;
 using System.Diagnostics;
 
 namespace GVFS.CommandLine
 {
-    [Verb(UnmountVerb.UnmountVerbName, HelpText = "Unmount a GVFS virtual repo")]
     public class UnmountVerb : GVFSVerb
     {
         private const string UnmountVerbName = "unmount";
 
-        [Value(
-            0,
-            Required = false,
-            Default = "",
-            MetaName = "Enlistment Root Path",
-            HelpText = "Full or relative path to the GVFS enlistment root")]
-        public override string EnlistmentRootPathParameter { get; set; }
+        public override string EnlistmentRootPathParameter { get; set; } = "";
 
-        [Option(
-            GVFSConstants.VerbParameters.Unmount.SkipLock,
-            Default = false,
-            Required = false,
-            HelpText = "Force unmount even if the lock is not available.")]
         public bool SkipLock { get; set; }
 
         public bool SkipUnregister { get; set; }

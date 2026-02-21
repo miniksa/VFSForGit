@@ -1,5 +1,4 @@
-﻿using CommandLine;
-using GVFS.Common;
+﻿using GVFS.Common;
 using GVFS.Common.NamedPipes;
 using GVFS.Common.Tracing;
 using GVFS.DiskLayoutUpgrades;
@@ -9,24 +8,12 @@ using System.IO;
 
 namespace GVFS.CommandLine
 {
-    [Verb(RepairVerb.RepairVerbName, HelpText = "EXPERIMENTAL FEATURE - Repair issues that prevent a GVFS repo from mounting")]
     public class RepairVerb : GVFSVerb
     {
         private const string RepairVerbName = "repair";
 
-        [Value(
-            1,
-            Required = false,
-            Default = "",
-            MetaName = "Enlistment Root Path",
-            HelpText = "Full or relative path to the GVFS enlistment root")]
-        public override string EnlistmentRootPathParameter { get; set; }
+        public override string EnlistmentRootPathParameter { get; set; } = "";
 
-        [Option(
-            "confirm",
-            Default = false,
-            Required = false,
-            HelpText = "Pass in this flag to actually do repair(s). Without it, only validation will be done.")]
         public bool Confirmed { get; set; }
 
         protected override string VerbName

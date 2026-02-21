@@ -1,4 +1,3 @@
-using CommandLine;
 using GVFS.Common;
 using GVFS.Common.FileSystem;
 using GVFS.Common.Git;
@@ -14,65 +13,24 @@ using System.Text;
 
 namespace GVFS.CommandLine
 {
-    [Verb(CloneVerb.CloneVerbName, HelpText = "Clone a git repo and mount it as a GVFS virtual repo")]
     public class CloneVerb : GVFSVerb
     {
         private const string CloneVerbName = "clone";
 
-        [Value(
-            0,
-            Required = true,
-            MetaName = "Repository URL",
-            HelpText = "The url of the repo")]
         public string RepositoryURL { get; set; }
 
-        [Value(
-            1,
-            Required = false,
-            Default = "",
-            MetaName = "Enlistment Root Path",
-            HelpText = "Full or relative path to the GVFS enlistment root")]
-        public override string EnlistmentRootPathParameter { get; set; }
+        public override string EnlistmentRootPathParameter { get; set; } = "";
 
-        [Option(
-            "cache-server-url",
-            Required = false,
-            Default = null,
-            HelpText = "The url or friendly name of the cache server")]
         public string CacheServerUrl { get; set; }
 
-        [Option(
-            'b',
-            "branch",
-            Required = false,
-            HelpText = "Branch to checkout after clone")]
         public string Branch { get; set; }
 
-        [Option(
-            "single-branch",
-            Required = false,
-            Default = false,
-            HelpText = "Use this option to only download metadata for the branch that will be checked out")]
         public bool SingleBranch { get; set; }
 
-        [Option(
-            "no-mount",
-            Required = false,
-            Default = false,
-            HelpText = "Use this option to only clone, but not mount the repo")]
         public bool NoMount { get; set; }
 
-        [Option(
-            "no-prefetch",
-            Required = false,
-            Default = false,
-            HelpText = "Use this option to not prefetch commits after clone")]
         public bool NoPrefetch { get; set; }
 
-        [Option(
-            "local-cache-path",
-            Required = false,
-            HelpText = "Use this option to override the path for the local GVFS cache.")]
         public string LocalCacheRoot { get; set; }
 
         protected override string VerbName

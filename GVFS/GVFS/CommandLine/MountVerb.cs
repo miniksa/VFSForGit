@@ -1,5 +1,4 @@
-﻿using CommandLine;
-using GVFS.Common;
+﻿using GVFS.Common;
 using GVFS.Common.FileSystem;
 using GVFS.Common.Git;
 using GVFS.Common.Http;
@@ -13,25 +12,12 @@ using System.Security.Principal;
 
 namespace GVFS.CommandLine
 {
-    [Verb(MountVerb.MountVerbName, HelpText = "Mount a GVFS virtual repo")]
     public class MountVerb : GVFSVerb.ForExistingEnlistment
     {
         private const string MountVerbName = "mount";
 
-        [Option(
-            'v',
-            GVFSConstants.VerbParameters.Mount.Verbosity,
-            Default = GVFSConstants.VerbParameters.Mount.DefaultVerbosity,
-            Required = false,
-            HelpText = "Sets the verbosity of console logging. Accepts: Verbose, Informational, Warning, Error")]
         public string Verbosity { get; set; }
 
-        [Option(
-            'k',
-            GVFSConstants.VerbParameters.Mount.Keywords,
-            Default = GVFSConstants.VerbParameters.Mount.DefaultKeywords,
-            Required = false,
-            HelpText = "A CSV list of logging filter keywords. Accepts: Any, Network")]
         public string KeywordsCsv { get; set; }
 
         public bool SkipMountedCheck { get; set; }

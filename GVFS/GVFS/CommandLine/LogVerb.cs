@@ -1,4 +1,3 @@
-using CommandLine;
 using GVFS.Common;
 using System.Collections.Generic;
 using System.IO;
@@ -6,24 +5,13 @@ using System.Linq;
 
 namespace GVFS.CommandLine
 {
-    [Verb(LogVerb.LogVerbName, HelpText = "Show the most recent GVFS log files")]
     public class LogVerb : GVFSVerb
     {
         private const string LogVerbName = "log";
         private static readonly int LogNameConsoleOutputFormatWidth = GetMaxLogNameLength();
 
-        [Value(
-            0,
-            Required = false,
-            Default = "",
-            MetaName = "Enlistment Root Path",
-            HelpText = "Full or relative path to the GVFS enlistment root")]
-        public override string EnlistmentRootPathParameter { get; set; }
+        public override string EnlistmentRootPathParameter { get; set; } = "";
 
-        [Option(
-            "type",
-            Default = null,
-            HelpText = "The type of log file to display on the console")]
         public string LogType { get; set; }
 
         protected override string VerbName

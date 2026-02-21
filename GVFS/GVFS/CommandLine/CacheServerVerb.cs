@@ -1,5 +1,4 @@
-﻿using CommandLine;
-using GVFS.Common;
+﻿using GVFS.Common;
 using GVFS.Common.Http;
 using GVFS.Common.Tracing;
 using System;
@@ -8,25 +7,14 @@ using System.Linq;
 
 namespace GVFS.CommandLine
 {
-    [Verb(CacheVerbName, HelpText = "Manages the cache server configuration for an existing repo.")]
     public class CacheServerVerb : GVFSVerb.ForExistingEnlistment
     {
         private const string CacheVerbName = "cache-server";
 
-        [Option(
-            "set",
-            Default = null,
-            Required = false,
-            HelpText = "Sets the cache server to the supplied name or url")]
         public string CacheToSet { get; set; }
 
-        [Option("get", Required = false, HelpText = "Outputs the current cache server information. This is the default.")]
         public bool OutputCurrentInfo { get; set; }
 
-        [Option(
-            "list",
-            Required = false,
-            HelpText = "List available cache servers for the remote repo")]
         public bool ListCacheServers { get; set; }
 
         protected override string VerbName

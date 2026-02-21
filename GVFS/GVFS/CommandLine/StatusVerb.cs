@@ -1,10 +1,8 @@
-﻿using CommandLine;
-using GVFS.Common;
+﻿using GVFS.Common;
 using GVFS.Common.NamedPipes;
 
 namespace GVFS.CommandLine
 {
-    [Verb(StatusVerb.StatusVerbName, HelpText = "Get the status of the GVFS virtual repo")]
     public class StatusVerb : GVFSVerb.ForExistingEnlistment
     {
         private const string StatusVerbName = "status";
