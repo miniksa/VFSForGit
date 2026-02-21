@@ -15,7 +15,6 @@
     <PackageReference Include="Microsoft.Database.Isam" Version="3.2.0" />
     <PackageReference Include="Microsoft.Windows.ProjFS" Version="1.2.19351.1" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
-    <PackageReference Include="System.Management" Version="9.0.2" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="9.0.2" />
   </ItemGroup>
 
