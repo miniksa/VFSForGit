@@ -1,13 +1,15 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace GVFS.Common
 {
     /// <summary>
     /// Shared JsonSerializerOptions for the GVFS codebase.
-    /// Uses the source-generated GVFSJsonContext for trim-safe and AOT-compatible
-    /// JSON serialization. PropertyNameCaseInsensitive matches the legacy
-    /// Newtonsoft.Json behavior.
+    /// Uses source-generated GVFSJsonContext for known types (trim-safe),
+    /// with DefaultJsonTypeInfoResolver fallback for dynamic types like
+    /// EventMetadata (Dictionary&lt;string, object&gt;) which can contain
+    /// arbitrary value types at runtime.
     /// </summary>
     public static class GVFSJsonOptions
     {
@@ -15,7 +17,7 @@ namespace GVFS.Common
         {
             PropertyNameCaseInsensitive = true,
             Converters = { new VersionConverter() },
-            TypeInfoResolverChain = { GVFSJsonContext.Default },
+            TypeInfoResolverChain = { GVFSJsonContext.Default, new DefaultJsonTypeInfoResolver() },
         };
     }
 }
