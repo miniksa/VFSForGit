@@ -5,6 +5,7 @@
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <PublishTrimmed>false</PublishTrimmed>
     <SelfContained>false</SelfContained>
+    <PublishAot>false</PublishAot>
   </PropertyGroup>
 
   <ItemGroup>

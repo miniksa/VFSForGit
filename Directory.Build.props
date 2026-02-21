@@ -30,12 +30,11 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <!-- Framework-dependent deployment: uses the installed .NET 10 runtime.
-         The system runtime has pre-crossgen'd assemblies for fast startup. -->
-    <SelfContained>false</SelfContained>
-    <!-- ReadyToRun: crossgen2 pre-compiles app assemblies to native code,
-         matching .NET Framework's NGEN behavior. Only applies to dotnet publish. -->
-    <PublishReadyToRun>true</PublishReadyToRun>
+    <!-- NativeAOT: ahead-of-time compile to native code, no JIT required.
+         Eliminates cold-start penalty and enables fastest possible startup.
+         Requires self-contained deployment. -->
+    <SelfContained>true</SelfContained>
+    <PublishAot>true</PublishAot>
   </PropertyGroup>
 
   <!-- Native project properties -->

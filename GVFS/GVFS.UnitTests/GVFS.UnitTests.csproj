@@ -5,6 +5,7 @@
     <OutputType>Exe</OutputType>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PublishTrimmed>false</PublishTrimmed>
+    <PublishAot>false</PublishAot>
   </PropertyGroup>
 
   <ItemGroup>
