@@ -26,8 +26,14 @@ namespace GVFS.Common
 
         public static string GetCurrentProcessLocation()
         {
-            // On .NET Core, Assembly.Location may return empty for single-file or self-contained apps.
-            // Fall back to AppContext.BaseDirectory or the process path.
+            // NativeAOT: Environment.ProcessPath is always reliable.
+            // Assembly.Location may return empty for single-file/NativeAOT apps.
+            string processPath = Environment.ProcessPath;
+            if (!string.IsNullOrEmpty(processPath))
+            {
+                return Path.GetDirectoryName(processPath);
+            }
+
             Assembly assembly = Assembly.GetExecutingAssembly();
             string location = assembly.Location;
             if (!string.IsNullOrEmpty(location))
@@ -35,22 +41,21 @@ namespace GVFS.Common
                 return Path.GetDirectoryName(location);
             }
 
-            string processPath = Environment.ProcessPath;
-            if (!string.IsNullOrEmpty(processPath))
-            {
-                return Path.GetDirectoryName(processPath);
-            }
-
             return AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
         }
 
         public static string GetEntryClassName()
         {
+            // NativeAOT: AppDomain.FriendlyName is reliable; Assembly.GetEntryAssembly() may return null.
+            string friendlyName = AppDomain.CurrentDomain.FriendlyName;
+            if (!string.IsNullOrEmpty(friendlyName))
+            {
+                return Path.GetFileNameWithoutExtension(friendlyName);
+            }
+
             Assembly assembly = Assembly.GetEntryAssembly();
             if (assembly == null)
             {
-                // The PR build tests doesn't produce an entry assembly because it is run from unmanaged code,
-                // so we'll fall back on using this assembly. This should never ever happen for a normal exe invocation.
                 assembly = Assembly.GetExecutingAssembly();
             }
 
@@ -61,8 +66,8 @@ namespace GVFS.Common
         {
             if (currentProcessVersion == null)
             {
-                Assembly assembly = Assembly.GetExecutingAssembly();
-                FileVersionInfo fileVersionInfo = FileVersionInfo.GetVersionInfo(assembly.Location);
+                // NativeAOT: Use Environment.ProcessPath directly; Assembly.Location may be empty.
+                FileVersionInfo fileVersionInfo = FileVersionInfo.GetVersionInfo(Environment.ProcessPath);
                 currentProcessVersion = fileVersionInfo.ProductVersion;
             }
 

@@ -12,7 +12,6 @@ namespace GVFS.GVFlt
         /// <remarks>
         /// This struct should only be used by the upgrader, it has been replaced by GVFS.Virtualization.Background.FileSystemTask
         /// </remarks>
-        [Serializable]
         public struct BackgroundGitUpdate
         {
             // This enum must be present or the BinarySerializer will always deserialze Operation as 0

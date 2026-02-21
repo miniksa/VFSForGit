@@ -10,7 +10,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 
 namespace GVFS.CommandLine
@@ -253,11 +252,8 @@ namespace GVFS.CommandLine
                         {
                             try
                             {
-                                string gvfsExecutable = Assembly.GetExecutingAssembly().Location;
-                                if (string.IsNullOrEmpty(gvfsExecutable))
-                                {
-                                    gvfsExecutable = Environment.ProcessPath;
-                                }
+                                // NativeAOT: Use Environment.ProcessPath directly; Assembly.Location may be empty.
+                                string gvfsExecutable = Environment.ProcessPath;
                                 Process.Start(new ProcessStartInfo(
                                     fileName: gvfsExecutable,
                                     arguments: "prefetch --commits")

@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 
 namespace GVFS.Common.FileSystem
@@ -22,12 +21,8 @@ namespace GVFS.Common.FileSystem
 
         static HooksInstaller()
         {
-            // On .NET Core, Assembly.Location can return empty for self-contained apps.
-            // Fall back to ProcessHelper which handles this.
-            string location = Assembly.GetExecutingAssembly().Location;
-            ExecutingDirectory = !string.IsNullOrEmpty(location)
-                ? Path.GetDirectoryName(location)
-                : ProcessHelper.GetCurrentProcessLocation();
+            // NativeAOT: Use ProcessHelper which prefers Environment.ProcessPath.
+            ExecutingDirectory = ProcessHelper.GetCurrentProcessLocation();
         }
 
         public static string MergeHooksData(string[] defaultHooksLines, string filename, string hookName)
