@@ -33,10 +33,6 @@
     <!-- Framework-dependent deployment: uses the installed .NET 10 runtime.
          The system runtime has pre-crossgen'd assemblies for fast startup. -->
     <SelfContained>false</SelfContained>
-    <!-- IL trimming applies only during 'dotnet publish' -->
-    <PublishTrimmed>true</PublishTrimmed>
-    <TrimMode>partial</TrimMode>
-    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
   </PropertyGroup>
 
   <!-- Native project properties -->
