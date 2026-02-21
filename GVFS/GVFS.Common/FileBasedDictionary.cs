@@ -120,7 +120,7 @@ namespace GVFS.Common
         {
             try
             {
-                KeyValuePair<TKey, TValue> kvp = (KeyValuePair<TKey, TValue>)JsonSerializer.Deserialize(line, typeof(KeyValuePair<TKey, TValue>), GVFSJsonContext.Default);
+                KeyValuePair<TKey, TValue> kvp = GVFSJsonOptions.Deserialize<KeyValuePair<TKey, TValue>>(line);
                 key = kvp.Key;
                 value = kvp.Value;
             }
@@ -140,7 +140,7 @@ namespace GVFS.Common
         {
             try
             {
-                key = (TKey)JsonSerializer.Deserialize(line, typeof(TKey), GVFSJsonContext.Default);
+                key = GVFSJsonOptions.Deserialize<TKey>(line);
             }
             catch (JsonException ex)
             {
@@ -162,7 +162,7 @@ namespace GVFS.Common
         {
             foreach (KeyValuePair<TKey, TValue> kvp in this.data)
             {
-                yield return this.FormatAddLine(JsonSerializer.Serialize(kvp, typeof(KeyValuePair<TKey, TValue>), GVFSJsonContext.Default).Trim());
+                yield return this.FormatAddLine(GVFSJsonOptions.Serialize(kvp).Trim());
             }
         }
     }

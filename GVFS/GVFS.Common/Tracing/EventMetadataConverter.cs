@@ -97,5 +97,25 @@ namespace GVFS.Common.Tracing
                     break;
             }
         }
+
+        /// <summary>
+        /// Serialize EventMetadata directly using Utf8JsonWriter, bypassing JsonSerializer
+        /// entirely. This is AOT-safe with no reflection or generic type resolution.
+        /// </summary>
+        public static string SerializeToString(EventMetadata metadata)
+        {
+            using var stream = new System.IO.MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream))
+            {
+                writer.WriteStartObject();
+                foreach (KeyValuePair<string, object> kvp in metadata)
+                {
+                    writer.WritePropertyName(kvp.Key);
+                    WriteValue(writer, kvp.Value);
+                }
+                writer.WriteEndObject();
+            }
+            return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+        }
     }
 }

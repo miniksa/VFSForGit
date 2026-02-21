@@ -24,7 +24,7 @@ namespace GVFS.Common.Tracing
                 return;
             }
 
-            ConsoleOutputPayload payload = (ConsoleOutputPayload)JsonSerializer.Deserialize(message.Payload, typeof(ConsoleOutputPayload), GVFSJsonContext.Default);
+            ConsoleOutputPayload payload = GVFSJsonOptions.Deserialize<ConsoleOutputPayload>(message.Payload);
             if (string.IsNullOrEmpty(payload.ErrorMessage))
             {
                 return;

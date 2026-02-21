@@ -8,7 +8,7 @@ namespace GVFS.Common
 
         public static VersionResponse FromJsonString(string jsonString)
         {
-            return (VersionResponse)JsonSerializer.Deserialize(jsonString, typeof(VersionResponse), GVFSJsonContext.Default);
+            return GVFSJsonOptions.Deserialize<VersionResponse>(jsonString);
         }
     }
 }

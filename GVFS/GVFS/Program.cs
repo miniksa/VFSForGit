@@ -54,6 +54,23 @@ namespace GVFS
             }
         }
 
+        /// <summary>
+        /// Execute a verb, catching VerbAbortedException and converting to exit code.
+        /// GVFS verbs use VerbAbortedException for flow control (exit with specific code).
+        /// </summary>
+        private static void ExecuteVerb(GVFSVerb verb)
+        {
+            try
+            {
+                verb.Execute();
+                Environment.Exit((int)ReturnCode.Success);
+            }
+            catch (GVFSVerb.VerbAbortedException e)
+            {
+                Environment.Exit((int)e.Verb.ReturnCode);
+            }
+        }
+
         private static Argument<string> CreateEnlistmentRootArgument(bool required = false)
         {
             if (required)
@@ -145,8 +162,7 @@ namespace GVFS
                 verb.NoPrefetch = context.ParseResult.GetValueForOption(noPrefetchOpt);
                 verb.LocalCacheRoot = context.ParseResult.GetValueForOption(localCachePathOpt);
                 // Clone gets special handling: do NOT default EnlistmentRootPathParameter to cwd
-                verb.Execute();
-                Environment.Exit((int)ReturnCode.Success);
+                ExecuteVerb(verb);
             });
 
             return cmd;
@@ -180,8 +196,7 @@ namespace GVFS
                 verb.OutputCurrentInfo = context.ParseResult.GetValueForOption(getOpt);
                 verb.ListCacheServers = context.ParseResult.GetValueForOption(listOpt);
                 ApplyEnlistmentRootDefault(verb);
-                verb.Execute();
-                Environment.Exit((int)ReturnCode.Success);
+                ExecuteVerb(verb);
             });
 
             return cmd;
@@ -211,8 +226,7 @@ namespace GVFS
                 verb.NoStatus = context.ParseResult.GetValueForOption(noStatusOpt);
                 verb.Folders = context.ParseResult.GetValueForOption(foldersOpt);
                 ApplyEnlistmentRootDefault(verb);
-                verb.Execute();
-                Environment.Exit((int)ReturnCode.Success);
+                ExecuteVerb(verb);
             });
 
             return cmd;
@@ -233,8 +247,7 @@ namespace GVFS
                 ApplyCommonOptions(verb, context, internalOpt);
                 verb.EnlistmentRootPathParameter = context.ParseResult.GetValueForArgument(enlistmentRootArg);
                 ApplyEnlistmentRootDefault(verb);
-                verb.Execute();
-                Environment.Exit((int)ReturnCode.Success);
+                ExecuteVerb(verb);
             });
 
             return cmd;
@@ -264,8 +277,7 @@ namespace GVFS
                 verb.Directory = context.ParseResult.GetValueForOption(directoryOpt);
                 verb.StatusOnly = context.ParseResult.GetValueForOption(statusOpt);
                 ApplyEnlistmentRootDefault(verb);
-                verb.Execute();
-                Environment.Exit((int)ReturnCode.Success);
+                ExecuteVerb(verb);
             });
 
             return cmd;
@@ -296,8 +308,7 @@ namespace GVFS
                 verb.Verbosity = context.ParseResult.GetValueForOption(verbosityOpt);
                 verb.KeywordsCsv = context.ParseResult.GetValueForOption(keywordsOpt);
                 ApplyEnlistmentRootDefault(verb);
-                verb.Execute();
-                Environment.Exit((int)ReturnCode.Success);
+                ExecuteVerb(verb);
             });
 
             return cmd;
@@ -345,8 +356,7 @@ namespace GVFS
                 verb.Commits = context.ParseResult.GetValueForOption(commitsOpt);
                 verb.Verbose = context.ParseResult.GetValueForOption(verboseOpt);
                 ApplyEnlistmentRootDefault(verb);
-                verb.Execute();
-                Environment.Exit((int)ReturnCode.Success);
+                ExecuteVerb(verb);
             });
 
             return cmd;
@@ -392,8 +402,7 @@ namespace GVFS
                 verb.Prune = context.ParseResult.GetValueForOption(pruneOpt);
                 verb.Disable = context.ParseResult.GetValueForOption(disableOpt);
                 ApplyEnlistmentRootDefault(verb);
-                verb.Execute();
-                Environment.Exit((int)ReturnCode.Success);
+                ExecuteVerb(verb);
             });
 
             return cmd;
@@ -414,8 +423,7 @@ namespace GVFS
                 ApplyCommonOptions(verb, context, internalOpt);
                 verb.EnlistmentRootPathParameter = context.ParseResult.GetValueForArgument(enlistmentRootArg);
                 ApplyEnlistmentRootDefault(verb);
-                verb.Execute();
-                Environment.Exit((int)ReturnCode.Success);
+                ExecuteVerb(verb);
             });
 
             return cmd;
@@ -443,8 +451,7 @@ namespace GVFS
                 verb.EnlistmentRootPathParameter = context.ParseResult.GetValueForArgument(enlistmentRootArg);
                 verb.LogType = context.ParseResult.GetValueForOption(typeOpt);
                 ApplyEnlistmentRootDefault(verb);
-                verb.Execute();
-                Environment.Exit((int)ReturnCode.Success);
+                ExecuteVerb(verb);
             });
 
             return cmd;
@@ -468,8 +475,7 @@ namespace GVFS
                 verb.EnlistmentRootPathParameter = context.ParseResult.GetValueForArgument(enlistmentRootArg);
                 verb.Confirmed = context.ParseResult.GetValueForOption(confirmOpt);
                 ApplyEnlistmentRootDefault(verb);
-                verb.Execute();
-                Environment.Exit((int)ReturnCode.Success);
+                ExecuteVerb(verb);
             });
 
             return cmd;
@@ -493,8 +499,7 @@ namespace GVFS
                 verb.EnlistmentRootPathParameter = context.ParseResult.GetValueForArgument(enlistmentRootArg);
                 verb.SkipLock = context.ParseResult.GetValueForOption(skipLockOpt);
                 ApplyEnlistmentRootDefault(verb);
-                verb.Execute();
-                Environment.Exit((int)ReturnCode.Success);
+                ExecuteVerb(verb);
             });
 
             return cmd;
@@ -527,8 +532,7 @@ namespace GVFS
                 verb.Value = context.ParseResult.GetValueForArgument(valueArg);
                 verb.List = context.ParseResult.GetValueForOption(listOpt);
                 verb.KeyToDelete = context.ParseResult.GetValueForOption(deleteOpt);
-                verb.Execute();
-                Environment.Exit((int)ReturnCode.Success);
+                ExecuteVerb(verb);
             });
 
             return cmd;
@@ -554,8 +558,7 @@ namespace GVFS
                 verb.MountAll = context.ParseResult.GetValueForOption(mountAllOpt);
                 verb.UnmountAll = context.ParseResult.GetValueForOption(unmountAllOpt);
                 verb.List = context.ParseResult.GetValueForOption(listMountedOpt);
-                verb.Execute();
-                Environment.Exit((int)ReturnCode.Success);
+                ExecuteVerb(verb);
             });
 
             return cmd;
@@ -581,8 +584,7 @@ namespace GVFS
                 verb.Confirmed = context.ParseResult.GetValueForOption(confirmOpt);
                 verb.DryRun = context.ParseResult.GetValueForOption(dryRunOpt);
                 verb.NoVerify = context.ParseResult.GetValueForOption(noVerifyOpt);
-                verb.Execute();
-                Environment.Exit((int)ReturnCode.Success);
+                ExecuteVerb(verb);
             });
 
             return cmd;

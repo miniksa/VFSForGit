@@ -15,11 +15,9 @@ namespace GVFS.Common
     [JsonSourceGenerationOptions(
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Converters = new[] { typeof(VersionConverter), typeof(EventMetadataConverter) })]
+        Converters = new[] { typeof(VersionConverter) })]
     [JsonSerializable(typeof(string))]
     [JsonSerializable(typeof(Dictionary<string, string>))]
-    [JsonSerializable(typeof(Dictionary<string, object>))]
-    [JsonSerializable(typeof(EventMetadata))]
     [JsonSerializable(typeof(KeyValuePair<string, string>))]
     [JsonSerializable(typeof(List<string>))]
     [JsonSerializable(typeof(List<GitObjectsHttpRequestor.GitObjectSize>))]

@@ -23,12 +23,12 @@ namespace GVFS.Common
 
         public static InternalVerbParameters FromJson(string json)
         {
-            return (InternalVerbParameters)JsonSerializer.Deserialize(json, typeof(InternalVerbParameters), GVFSJsonContext.Default);
+            return GVFSJsonOptions.Deserialize<InternalVerbParameters>(json);
         }
 
         public string ToJson()
         {
-            return JsonSerializer.Serialize(this, typeof(InternalVerbParameters), GVFSJsonContext.Default);
+            return GVFSJsonOptions.Serialize(this);
         }
     }
 }

@@ -692,7 +692,7 @@ namespace GVFS.Mount
             NamedPipeMessages.RunPostFetchJob.Response response;
             if (this.currentState == MountState.Ready)
             {
-                List<string> packIndexes = JsonSerializer.Deserialize<List<string>>(message.Body, GVFSJsonOptions.Default);
+                List<string> packIndexes = GVFSJsonOptions.Deserialize<List<string>>(message.Body);
                 this.maintenanceScheduler.EnqueueOneTimeStep(new PostFetchStep(this.context, packIndexes));
 
                 response = new NamedPipeMessages.RunPostFetchJob.Response(NamedPipeMessages.RunPostFetchJob.QueuedResult);
