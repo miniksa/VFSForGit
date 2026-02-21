@@ -47,15 +47,8 @@ namespace GVFS.FunctionalTests.Properties
                 Commitish = @"FunctionalTests/20201014";
 
                 EnlistmentRoot = @"C:\Repos\GVFSFunctionalTests\enlistment";
-
-                // Use build output from .NET 10 migration
-                string buildConfig = "Debug";
-                string tfm = "net10.0-windows10.0.17763.0";
-                string rid = "win-x64";
-                string outRoot = @"D:\src\out";
-                string gvfsBinDir = Path.Combine(outRoot, "GVFS", "bin", buildConfig, tfm, rid);
-                PathToGVFS = Path.Combine(gvfsBinDir, "GVFS.exe");
-                PathToGVFSService = Path.Combine(gvfsBinDir, "GVFS.Service.exe");
+                PathToGVFS = @"C:\Program Files\VFS for Git\GVFS.exe";
+                PathToGVFSService = @"C:\Program Files\VFS for Git\GVFS.Service.exe";
 
                 PathToGit = @"C:\Program Files\Git\cmd\git.exe";
                 PathToBash = @"C:\Program Files\Git\bin\bash.exe";
