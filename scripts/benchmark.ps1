@@ -26,14 +26,21 @@ param(
     [string]$TestRepo = "https://gvfs.visualstudio.com/ci/_git/ForTests",
     [string]$TestBranch = "FunctionalTests/20201014",
     [string]$LargeRepo = "D:\os",
-    [string]$OutputFile = "D:\src\VFSForGit\benchmark-results.md"
+    [string]$OutputFile = "D:\src\VFSForGit\benchmark-results-$(Get-Date -Format 'yyyyMMdd-HHmmss').md",
+    [switch]$UsePublished
 )
 
 $ErrorActionPreference = "Continue"
 
 # --- Configuration ---
 $prodGVFS = "C:\Program Files\GVFS\GVFS.exe"
-$net10GVFS = "D:\src\out\GVFS\bin\Release\net10.0-windows10.0.17763.0\win-x64\GVFS.exe"
+if ($UsePublished) {
+    $net10GVFS = "D:\src\out\GVFS\bin\Release\net10.0-windows10.0.17763.0\win-x64\publish\GVFS.exe"
+    $net10Label = ".NET 10 (R2R+Trimmed)"
+} else {
+    $net10GVFS = "D:\src\out\GVFS\bin\Release\net10.0-windows10.0.17763.0\win-x64\GVFS.exe"
+    $net10Label = ".NET 10 (JIT only)"
+}
 $git = "C:\Program Files\Git\cmd\git.exe"
 $cloneRoot = "C:\Repos\GVFSBenchmark"
 
@@ -281,8 +288,8 @@ Remove-Item "$cloneRoot" -Recurse -Force -EA 0
 # ============================================================
 Write-Host "`n--- Generating Report ---" -ForegroundColor Yellow
 
-$prodVersion = (& $prodGVFS version 2>&1 | Out-String).Trim()
-$net10Version = (& $net10GVFS version 2>&1 | Out-String).Trim()
+$prodVersion = ((& $prodGVFS version) 2>$null | Select-Object -First 1)
+$net10Version = ((& $net10GVFS version) 2>$null | Select-Object -First 1)
 
 $report = @"
 # VFSForGit .NET 10 Migration — Performance Comparison
@@ -309,9 +316,9 @@ foreach ($r in $allResults) {
         $pct = if ($r.Prod.Avg -gt 0) { [math]::Round($delta / $r.Prod.Avg * 100, 1) } else { 0 }
         $change = if ($pct -lt -5) { "**faster**" } elseif ($pct -gt 5) { "slower" } else { "~same" }
         $sign = if ($delta -gt 0) { "+" } else { "" }
-        $report += "| $($r.Benchmark) | $($r.Prod.Avg) ± $($r.Prod.StdDev) | $($r.Net10.Avg) ± $($r.Net10.StdDev) | $sign$([math]::Round($delta, 1)) ($sign$pct%) | $change |`n"
+        $report += "| $($r.Benchmark) | $($r.Prod.Avg) ± $($r.Prod.StdDev) | $($r.Net10.Avg) ± $($r.Net10.StdDev) | $sign$([math]::Round($delta, 1)) ($sign$pct%) | $change |" + "`r`n"
     } else {
-        $report += "| $($r.Benchmark) | $($r.Prod.Avg) ± $($r.Prod.StdDev) | N/A | N/A | baseline |`n"
+        $report += "| $($r.Benchmark) | $($r.Prod.Avg) ± $($r.Prod.StdDev) | N/A | N/A | baseline |" + "`r`n"
     }
 }
 

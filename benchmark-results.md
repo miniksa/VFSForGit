@@ -1,29 +1,39 @@
 ﻿# VFSForGit .NET 10 Migration â€” Performance Comparison
 
-**Date**: 2026-02-20 16:37
+**Date**: 2026-02-20 16:45
 **Machine**: NIKSA-13900 (Intel64 Family 6 Model 183 Stepping 1, GenuineIntel)
 **OS**: Microsoft Windows 11 Enterprise Build 26200
 **Iterations**: 5 per benchmark (clones: 3)
 
 | Build | Version | Framework | Config |
 |-------|---------|-----------|--------|
-| Production |  | .NET Framework 4.7.1 | Installed (C:\Program Files\GVFS) |
-| .NET 10 |  | .NET 10.0 (self-contained) | Build output (Release) |
+| Production | GVFS.exe : GVFS 1.0.26014.1
+At D:\src\VFSForGit\scripts\benchmark.ps1:284 char:17
++ $prodVersion = (& $prodGVFS version 2>&1 | Out-String).Trim()
++                 ~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (GVFS 1.0.26014.1:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError | .NET Framework 4.7.1 | Installed (C:\Program Files\GVFS) |
+| .NET 10 | GVFS.exe : GVFS 0.2.173.2
+At D:\src\VFSForGit\scripts\benchmark.ps1:285 char:18
++ $net10Version = (& $net10GVFS version 2>&1 | Out-String).Trim()
++                  ~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (GVFS 0.2.173.2:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError | .NET 10.0 (self-contained) | Build output (Release) |
 
 ## Results
 
 | Benchmark | Production (ms) | .NET 10 (ms) | Delta | Change |
-|-----------|---------------:|-------------:|------:|--------|| Startup (gvfs version) | 54.3 Â± 4 | 55.3 Â± 1.4 | +1 (+1.8%) | ~same |
-| Clone (small repo, no mount) | 5456.7 Â± 294.7 | 7864.5 Â± 2532.3 | +2407.8 (+44.1%) | slower |
-| Mount (small repo) | 4664 Â± 244.7 | 6403.2 Â± 168 | +1739.2 (+37.3%) | slower |
-| Status (pipe roundtrip) | 336.6 Â± 9.5 | 335.4 Â± 5.7 | -1.2 (-0.4%) | ~same |
-| Prefetch (*.md) | 983.9 Â± 512.9 | 1261.6 Â± 832.6 | +277.7 (+28.2%) | slower |
-| Git Status | 174.9 Â± 19.6 | 263 Â± 121.6 | +88.1 (+50.4%) | slower |
-| Git Log (-100) | 121.1 Â± 1.5 | 188 Â± 27.9 | +66.9 (+55.2%) | slower |
-| Dir Enumeration (ProjFS) | 240.8 Â± 75.4 | 213.7 Â± 74.4 | -27.1 (-11.3%) | **faster** |
-| File Read (hydration) | 61.1 Â± 104.5 | 8.8 Â± 13.9 | -52.3 (-85.6%) | **faster** |
-| Unmount | 777.3 Â± 434.7 | 798.4 Â± 526.3 | +21.1 (+2.7%) | ~same |
-| Large Repo Git Status | 28.8 Â± 1.2 | N/A | N/A | baseline |
+|-----------|---------------:|-------------:|------:|--------|| Startup (gvfs version) | 52.4 Â± 1 | 54.5 Â± 0.7 | +2.1 (+4%) | ~same |
+| Clone (small repo, no mount) | 5501.5 Â± 209.6 | 8312.5 Â± 2793 | +2811 (+51.1%) | slower |
+| Mount (small repo) | 4522.7 Â± 58.7 | 6418.5 Â± 244.1 | +1895.8 (+41.9%) | slower |
+| Status (pipe roundtrip) | 336.9 Â± 9.4 | 345.8 Â± 17 | +8.9 (+2.6%) | ~same |
+| Prefetch (*.md) | 1038.8 Â± 435.4 | 1567.8 Â± 1189.5 | +529 (+50.9%) | slower |
+| Git Status | 201.5 Â± 20.3 | 229.5 Â± 14.8 | +28 (+13.9%) | slower |
+| Git Log (-100) | 136.2 Â± 2.2 | 192 Â± 7.6 | +55.8 (+41%) | slower |
+| Dir Enumeration (ProjFS) | 227 Â± 66.8 | 268.9 Â± 128.6 | +41.9 (+18.5%) | slower |
+| File Read (hydration) | 5.2 Â± 7.9 | 3.5 Â± 4.7 | -1.7 (-32.7%) | **faster** |
+| Unmount | 930.7 Â± 513.3 | 879.2 Â± 563.4 | -51.5 (-5.5%) | **faster** |
+| Large Repo Git Status | 29.5 Â± 0.5 | N/A | N/A | baseline |
 
 ## Details
 
@@ -49,47 +59,47 @@
 ### Raw Data
 
 ```Startup (gvfs version):
-  Production: min=51.3 avg=54.3 max=61.2 stddev=4
-  .NET 10:    min=53.7 avg=55.3 max=57 stddev=1.4
+  Production: min=51.2 avg=52.4 max=53.6 stddev=1
+  .NET 10:    min=53.3 avg=54.5 max=55.1 stddev=0.7
 
 Clone (small repo, no mount):
-  Production: min=5140.3 avg=5456.7 max=5723.6 stddev=294.7
-  .NET 10:    min=5450.2 avg=7864.5 max=10500.3 stddev=2532.3
+  Production: min=5275 avg=5501.5 max=5688.7 stddev=209.6
+  .NET 10:    min=5639.8 avg=8312.5 max=11211.9 stddev=2793
 
 Mount (small repo):
-  Production: min=4498.5 avg=4664 max=5094.7 stddev=244.7
-  .NET 10:    min=6121.1 avg=6403.2 max=6563.1 stddev=168
+  Production: min=4461.6 avg=4522.7 max=4608.5 stddev=58.7
+  .NET 10:    min=5996.7 avg=6418.5 max=6607.3 stddev=244.1
 
 Status (pipe roundtrip):
-  Production: min=327.3 avg=336.6 max=359 stddev=9.5
-  .NET 10:    min=329.4 avg=335.4 max=343.3 stddev=5.7
+  Production: min=329.3 avg=336.9 max=361.4 stddev=9.4
+  .NET 10:    min=333.1 avg=345.8 max=392.1 stddev=17
 
 Prefetch (*.md):
-  Production: min=686.8 avg=983.9 max=1576.1 stddev=512.9
-  .NET 10:    min=732.8 avg=1261.6 max=2221.4 stddev=832.6
+  Production: min=756.6 avg=1038.8 max=1540.2 stddev=435.4
+  .NET 10:    min=864.7 avg=1567.8 max=2941.2 stddev=1189.5
 
 Git Status:
-  Production: min=160.1 avg=174.9 max=208.5 stddev=19.6
-  .NET 10:    min=206.4 avg=263 max=480.5 stddev=121.6
+  Production: min=185.7 avg=201.5 max=234.8 stddev=20.3
+  .NET 10:    min=218.5 avg=229.5 max=254.6 stddev=14.8
 
 Git Log (-100):
-  Production: min=119.6 avg=121.1 max=123.5 stddev=1.5
-  .NET 10:    min=174.2 avg=188 max=237.8 stddev=27.9
+  Production: min=133.4 avg=136.2 max=138.4 stddev=2.2
+  .NET 10:    min=180.8 avg=192 max=199.8 stddev=7.6
 
 Dir Enumeration (ProjFS):
-  Production: min=181 avg=240.8 max=359.4 stddev=75.4
-  .NET 10:    min=171.2 avg=213.7 max=346.4 stddev=74.4
+  Production: min=183.9 avg=227 max=341.3 stddev=66.8
+  .NET 10:    min=185.1 avg=268.9 max=493.4 stddev=128.6
 
 File Read (hydration):
-  Production: min=0.6 avg=61.1 max=181.8 stddev=104.5
-  .NET 10:    min=0.7 avg=8.8 max=24.9 stddev=13.9
+  Production: min=0.6 avg=5.2 max=14.2 stddev=7.9
+  .NET 10:    min=0.6 avg=3.5 max=8.9 stddev=4.7
 
 Unmount:
-  Production: min=312.5 avg=777.3 max=1173.8 stddev=434.7
-  .NET 10:    min=192.1 avg=798.4 max=1137 stddev=526.3
+  Production: min=338 avg=930.7 max=1232.6 stddev=513.3
+  .NET 10:    min=233.1 avg=879.2 max=1268.3 stddev=563.4
 
 Large Repo Git Status:
-  Production: min=27.7 avg=28.8 max=30.6 stddev=1.2
+  Production: min=28.9 avg=29.5 max=30.2 stddev=0.5
 
 ```
 
