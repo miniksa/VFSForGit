@@ -1,5 +1,5 @@
-﻿using System;
-using Newtonsoft.Json;
+using System;
+using System.Text.Json;
 
 namespace GVFS.Common.Tracing
 {
@@ -24,7 +24,7 @@ namespace GVFS.Common.Tracing
                 return;
             }
 
-            ConsoleOutputPayload payload = JsonConvert.DeserializeObject<ConsoleOutputPayload>(message.Payload);
+            ConsoleOutputPayload payload = JsonSerializer.Deserialize<ConsoleOutputPayload>(message.Payload, GVFSJsonOptions.Default);
             if (string.IsNullOrEmpty(payload.ErrorMessage))
             {
                 return;

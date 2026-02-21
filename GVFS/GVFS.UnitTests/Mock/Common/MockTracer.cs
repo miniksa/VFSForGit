@@ -1,7 +1,8 @@
 using GVFS.Common.Tracing;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using GVFS.Common;
+using System.Text.Json;
 using System.Threading;
 
 namespace GVFS.UnitTests.Mock.Common
@@ -54,7 +55,7 @@ namespace GVFS.UnitTests.Mock.Common
         public void RelatedInfo(EventMetadata metadata, string message)
         {
             metadata[TracingConstants.MessageKey.InfoMessage] = message;
-            this.RelatedInfoEvents.Add(JsonConvert.SerializeObject(metadata));
+            this.RelatedInfoEvents.Add(JsonSerializer.Serialize(metadata, GVFSJsonOptions.Default));
         }
 
         public void RelatedInfo(string format, params object[] args)
@@ -67,7 +68,7 @@ namespace GVFS.UnitTests.Mock.Common
             if (metadata != null)
             {
                 metadata[TracingConstants.MessageKey.WarningMessage] = message;
-                this.RelatedWarningEvents.Add(JsonConvert.SerializeObject(metadata));
+                this.RelatedWarningEvents.Add(JsonSerializer.Serialize(metadata, GVFSJsonOptions.Default));
             }
             else if (message != null)
             {
@@ -93,7 +94,7 @@ namespace GVFS.UnitTests.Mock.Common
         public void RelatedError(EventMetadata metadata, string message)
         {
             metadata[TracingConstants.MessageKey.ErrorMessage] = message;
-            this.RelatedErrorEvents.Add(JsonConvert.SerializeObject(metadata));
+            this.RelatedErrorEvents.Add(JsonSerializer.Serialize(metadata, GVFSJsonOptions.Default));
         }
 
         public void RelatedError(EventMetadata metadata, string message, Keywords keyword)

@@ -1,10 +1,10 @@
-﻿using GVFS.Common;
+using GVFS.Common;
 using GVFS.Common.Git;
 using GVFS.Common.Http;
 using GVFS.Tests.Should;
 using GVFS.UnitTests.Mock.Common;
 using GVFS.UnitTests.Mock.Git;
-using Newtonsoft.Json;
+using System.Text.Json;
 using NUnit.Framework;
 
 namespace GVFS.UnitTests.Common
@@ -217,7 +217,7 @@ namespace GVFS.UnitTests.Common
 
         private ServerGVFSConfig CreateDefaultDeserializedGVFSConfig()
         {
-            return JsonConvert.DeserializeObject<ServerGVFSConfig>("{}");
+            return JsonSerializer.Deserialize<ServerGVFSConfig>("{}", GVFSJsonOptions.Default);
         }
 
         private CacheServerResolver CreateResolver(MockGVFSEnlistment enlistment = null)

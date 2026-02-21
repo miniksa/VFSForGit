@@ -1,14 +1,15 @@
-﻿using GVFS.FunctionalTests.FileSystemRunners;
+using GVFS.Common;
+using GVFS.FunctionalTests.FileSystemRunners;
 using GVFS.FunctionalTests.Should;
 using GVFS.Tests.Should;
 using Microsoft.Data.Sqlite;
-using Newtonsoft.Json;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
 
 namespace GVFS.FunctionalTests.Tools
 {
@@ -289,7 +290,7 @@ namespace GVFS.FunctionalTests.Tools
                     json = reader.ReadLine();
                     json.Substring(0, 2).ShouldEqual("A ");
 
-                    KeyValuePair<string, string> kvp = JsonConvert.DeserializeObject<KeyValuePair<string, string>>(json.Substring(2));
+                    KeyValuePair<string, string> kvp = JsonSerializer.Deserialize<KeyValuePair<string, string>>(json.Substring(2), GVFSJsonOptions.Default);
                     if (kvp.Key == key)
                     {
                         return kvp.Value;
@@ -314,7 +315,7 @@ namespace GVFS.FunctionalTests.Tools
                     json = reader.ReadLine();
                     json.Substring(0, 2).ShouldEqual("A ");
 
-                    KeyValuePair<string, string> kvp = JsonConvert.DeserializeObject<KeyValuePair<string, string>>(json.Substring(2));
+                    KeyValuePair<string, string> kvp = JsonSerializer.Deserialize<KeyValuePair<string, string>>(json.Substring(2), GVFSJsonOptions.Default);
                     repoMetadata.Add(kvp.Key, kvp.Value);
                 }
             }
@@ -325,7 +326,7 @@ namespace GVFS.FunctionalTests.Tools
 
             foreach (KeyValuePair<string, string> kvp in repoMetadata)
             {
-                newRepoMetadataContents += "A " + JsonConvert.SerializeObject(kvp).Trim() + "\r\n";
+                newRepoMetadataContents += "A " + JsonSerializer.Serialize(kvp, GVFSJsonOptions.Default).Trim() + "\r\n";
             }
 
             File.WriteAllText(metadataPath, newRepoMetadataContents);

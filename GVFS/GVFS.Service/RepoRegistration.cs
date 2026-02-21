@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+using GVFS.Common;
+using System.Text.Json;
 
 namespace GVFS.Service
 {
@@ -21,12 +22,9 @@ namespace GVFS.Service
 
         public static RepoRegistration FromJson(string json)
         {
-            return JsonConvert.DeserializeObject<RepoRegistration>(
-                json,
-                new JsonSerializerSettings
-                {
-                    MissingMemberHandling = MissingMemberHandling.Ignore
-                });
+            // System.Text.Json ignores missing members by default,
+            // matching the previous MissingMemberHandling.Ignore behavior.
+            return JsonSerializer.Deserialize<RepoRegistration>(json, GVFSJsonOptions.Default);
         }
 
         public override string ToString()
@@ -41,7 +39,7 @@ namespace GVFS.Service
 
         public string ToJson()
         {
-            return JsonConvert.SerializeObject(this);
+            return JsonSerializer.Serialize(this, GVFSJsonOptions.Default);
         }
     }
 }

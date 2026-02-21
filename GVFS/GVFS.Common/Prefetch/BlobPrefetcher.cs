@@ -1,15 +1,15 @@
-﻿using GVFS.Common.FileSystem;
+using GVFS.Common.FileSystem;
 using GVFS.Common.Git;
 using GVFS.Common.Http;
 using GVFS.Common.Prefetch.Git;
 using GVFS.Common.Prefetch.Pipeline;
 using GVFS.Common.Tracing;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 
 namespace GVFS.Common.Prefetch
@@ -140,8 +140,8 @@ namespace GVFS.Common.Prefetch
                 lastPrefetchArgs.TryGetValue(PrefetchArgs.Folders, out string lastFoldersString) &&
                 lastPrefetchArgs.TryGetValue(PrefetchArgs.Hydrate, out string lastHydrateString))
             {
-                string newFilesString = JsonConvert.SerializeObject(files);
-                string newFoldersString = JsonConvert.SerializeObject(folders);
+                string newFilesString = JsonSerializer.Serialize(files, GVFSJsonOptions.Default);
+                string newFoldersString = JsonSerializer.Serialize(folders, GVFSJsonOptions.Default);
                 bool isNoop =
                     commitId == lastCommitId &&
                     hydrateFilesAfterDownload.ToString() == lastHydrateString &&
@@ -587,8 +587,8 @@ namespace GVFS.Common.Prefetch
                     new[]
                     {
                         new KeyValuePair<string, string>(PrefetchArgs.CommitId, targetCommit),
-                        new KeyValuePair<string, string>(PrefetchArgs.Files, JsonConvert.SerializeObject(this.FileList)),
-                        new KeyValuePair<string, string>(PrefetchArgs.Folders, JsonConvert.SerializeObject(this.FolderList)),
+                        new KeyValuePair<string, string>(PrefetchArgs.Files, JsonSerializer.Serialize(this.FileList, GVFSJsonOptions.Default)),
+                        new KeyValuePair<string, string>(PrefetchArgs.Folders, JsonSerializer.Serialize(this.FolderList, GVFSJsonOptions.Default)),
                         new KeyValuePair<string, string>(PrefetchArgs.Hydrate, hydrate.ToString()),
                     });
             }

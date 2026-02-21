@@ -1,6 +1,6 @@
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace GVFS.Common
 {
@@ -15,26 +15,55 @@ namespace GVFS.Common
     /// </summary>
     public class VersionConverter : JsonConverter<Version>
     {
-        public override Version ReadJson(JsonReader reader, Type objectType, Version existingValue, bool hasExistingValue, JsonSerializer serializer)
+        public override Version Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            if (reader.TokenType == JsonToken.Null)
+            if (reader.TokenType == JsonTokenType.Null)
             {
                 return null;
             }
 
-            if (reader.TokenType == JsonToken.String)
+            if (reader.TokenType == JsonTokenType.String)
             {
-                string versionString = reader.Value.ToString();
+                string versionString = reader.GetString();
                 return new Version(versionString);
             }
 
-            if (reader.TokenType == JsonToken.StartObject)
+            if (reader.TokenType == JsonTokenType.StartObject)
             {
-                JObject obj = JObject.Load(reader);
-                int major = obj.Value<int>("Major");
-                int minor = obj.Value<int>("Minor");
-                int build = obj.Value<int>("Build");
-                int revision = obj.Value<int>("Revision");
+                int major = 0, minor = 0, build = -1, revision = -1;
+
+                while (reader.Read())
+                {
+                    if (reader.TokenType == JsonTokenType.EndObject)
+                    {
+                        break;
+                    }
+
+                    if (reader.TokenType == JsonTokenType.PropertyName)
+                    {
+                        string propertyName = reader.GetString();
+                        reader.Read();
+
+                        switch (propertyName)
+                        {
+                            case "Major":
+                                major = reader.GetInt32();
+                                break;
+                            case "Minor":
+                                minor = reader.GetInt32();
+                                break;
+                            case "Build":
+                                build = reader.GetInt32();
+                                break;
+                            case "Revision":
+                                revision = reader.GetInt32();
+                                break;
+                            default:
+                                reader.Skip();
+                                break;
+                        }
+                    }
+                }
 
                 if (build < 0)
                 {
@@ -49,18 +78,18 @@ namespace GVFS.Common
                 return new Version(major, minor, build, revision);
             }
 
-            throw new JsonSerializationException($"Unexpected token type '{reader.TokenType}' when deserializing System.Version.");
+            throw new JsonException($"Unexpected token type '{reader.TokenType}' when deserializing System.Version.");
         }
 
-        public override void WriteJson(JsonWriter writer, Version value, JsonSerializer serializer)
+        public override void Write(Utf8JsonWriter writer, Version value, JsonSerializerOptions options)
         {
             if (value == null)
             {
-                writer.WriteNull();
+                writer.WriteNullValue();
             }
             else
             {
-                writer.WriteValue(value.ToString());
+                writer.WriteStringValue(value.ToString());
             }
         }
     }

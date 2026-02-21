@@ -9,13 +9,13 @@ using GVFS.Common.Tracing;
 using GVFS.PlatformLoader;
 using GVFS.Virtualization;
 using GVFS.Virtualization.FileSystem;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using static GVFS.Common.Git.LibGit2Repo;
 
@@ -692,7 +692,7 @@ namespace GVFS.Mount
             NamedPipeMessages.RunPostFetchJob.Response response;
             if (this.currentState == MountState.Ready)
             {
-                List<string> packIndexes = JsonConvert.DeserializeObject<List<string>>(message.Body);
+                List<string> packIndexes = JsonSerializer.Deserialize<List<string>>(message.Body, GVFSJsonOptions.Default);
                 this.maintenanceScheduler.EnqueueOneTimeStep(new PostFetchStep(this.context, packIndexes));
 
                 response = new NamedPipeMessages.RunPostFetchJob.Response(NamedPipeMessages.RunPostFetchJob.QueuedResult);

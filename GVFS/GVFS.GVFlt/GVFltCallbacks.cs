@@ -1,5 +1,5 @@
-using Newtonsoft.Json;
 using System;
+using System.Text.Json;
 
 namespace GVFS.GVFlt
 {
@@ -27,7 +27,7 @@ namespace GVFS.GVFlt
             // Used by the logging in the upgrader
             public override string ToString()
             {
-                return JsonConvert.SerializeObject(this);
+                return JsonSerializer.Serialize(this);
             }
         }
     }

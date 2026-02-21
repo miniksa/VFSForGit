@@ -5,7 +5,6 @@ using GVFS.Common.Git;
 using GVFS.Common.Http;
 using GVFS.Common.NamedPipes;
 using GVFS.Common.Tracing;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -122,7 +121,7 @@ namespace GVFS.CommandLine
 
                         this.StartedByService = mountInternal.StartedByService;
                     }
-                    catch (JsonReaderException e)
+                    catch (System.Text.Json.JsonException e)
                     {
                         this.ReportErrorAndExit("Failed to parse InternalParameters: {0}.\n {1}", value, e);
                     }

@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using System.Text.Json;
 
 namespace GVFS.Common
 {
@@ -23,12 +23,12 @@ namespace GVFS.Common
 
         public static InternalVerbParameters FromJson(string json)
         {
-            return JsonConvert.DeserializeObject<InternalVerbParameters>(json);
+            return JsonSerializer.Deserialize<InternalVerbParameters>(json, GVFSJsonOptions.Default);
         }
 
         public string ToJson()
         {
-            return JsonConvert.SerializeObject(this);
+            return JsonSerializer.Serialize(this, GVFSJsonOptions.Default);
         }
     }
 }
