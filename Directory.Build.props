@@ -30,10 +30,9 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <!-- Self-contained deployment: bundle the .NET runtime so no runtime install is needed -->
-    <SelfContained>true</SelfContained>
-    <!-- ReadyToRun: pre-compile managed assemblies to native code to eliminate JIT overhead -->
-    <PublishReadyToRun>true</PublishReadyToRun>
+    <!-- Framework-dependent deployment: uses the installed .NET 10 runtime.
+         The system runtime has pre-crossgen'd assemblies for fast startup. -->
+    <SelfContained>false</SelfContained>
     <!-- IL trimming applies only during 'dotnet publish' -->
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>partial</TrimMode>
