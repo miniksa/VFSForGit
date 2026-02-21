@@ -157,7 +157,19 @@ Write-Host "`n--- Benchmark 4: Status (named pipe roundtrip) ---" -ForegroundCol
 # Mount for status tests
 & $prodGVFS mount "$cloneRoot\mount_prod" 2>&1 | Out-Null
 & $net10GVFS mount "$cloneRoot\mount_net10" 2>&1 | Out-Null
-Start-Sleep 3
+
+# Wait until both mounts are fully ready (not just process started)
+$maxWait = 30
+for ($w = 0; $w -lt $maxWait; $w++) {
+    $prodStatus = & $prodGVFS status "$cloneRoot\mount_prod" 2>&1 | Out-String
+    $net10Status = & $net10GVFS status "$cloneRoot\mount_net10" 2>&1 | Out-String
+    if ($prodStatus -match "Mount status: Ready" -and $net10Status -match "Mount status: Ready") {
+        Write-Host "  Both mounts ready after $($w+1)s"
+        break
+    }
+    Start-Sleep 1
+}
+if ($w -eq $maxWait) { Write-Host "  WARNING: Mount readiness timeout after ${maxWait}s" -ForegroundColor Red }
 
 $r4_prod = Measure-Operation -Name "Production" -Iterations ($Iterations * 2) -Operation {
     & $prodGVFS status "$cloneRoot\mount_prod" 2>&1
