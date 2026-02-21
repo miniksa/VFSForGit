@@ -1,0 +1,649 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Runtime.InteropServices;
+using static Microsoft.Windows.ProjFS.ProjFSNative;
+
+namespace Microsoft.Windows.ProjFS
+{
+    /// <summary>
+    /// Pure C# P/Invoke implementation of the ProjFS VirtualizationInstance,
+    /// replacing the C++/CLI mixed-mode ProjectedFSLib.Managed.dll for NativeAOT compatibility.
+    /// </summary>
+    public class VirtualizationInstance : IVirtualizationInstance
+    {
+        public const int PlaceholderIdLength = ProjFSNative.PlaceholderIdLength;
+
+        private readonly string _rootPath;
+        private readonly uint _poolThreadCount;
+        private readonly uint _concurrentThreadCount;
+        private readonly bool _enableNegativePathCache;
+        private readonly IList<NotificationMapping> _notificationMappings;
+
+        private IntPtr _context; // PRJ_NAMESPACE_VIRTUALIZATION_CONTEXT
+        private GCHandle _selfHandle;
+        private Guid _instanceId;
+        private IRequiredCallbacks _requiredCallbacks;
+
+        // Keep delegates alive to prevent GC while native code holds function pointers
+        private StartDirectoryEnumerationDelegate _startDirEnumDelegate;
+        private EndDirectoryEnumerationDelegate _endDirEnumDelegate;
+        private GetDirectoryEnumerationDelegate _getDirEnumDelegate;
+        private GetPlaceholderInfoDelegate _getPlaceholderInfoDelegate;
+        private GetFileDataDelegate _getFileDataDelegate;
+        private QueryFileNameDelegate _queryFileNameDelegate;
+        private NotificationDelegate _notificationDelegate;
+        private CancelCommandDelegate _cancelCommandDelegate;
+
+        public VirtualizationInstance(
+            string virtualizationRootPath,
+            uint poolThreadCount,
+            uint concurrentThreadCount,
+            bool enableNegativePathCache,
+            IList<NotificationMapping> notificationMappings)
+        {
+            _rootPath = virtualizationRootPath ?? throw new ArgumentNullException(nameof(virtualizationRootPath));
+            _poolThreadCount = poolThreadCount;
+            _concurrentThreadCount = concurrentThreadCount;
+            _enableNegativePathCache = enableNegativePathCache;
+            _notificationMappings = notificationMappings ?? new List<NotificationMapping>();
+            _instanceId = Guid.NewGuid();
+        }
+
+        public CancelCommandCallback OnCancelCommand { get; set; }
+        public NotifyFileOpenedCallback OnNotifyFileOpened { get; set; }
+        public NotifyNewFileCreatedCallback OnNotifyNewFileCreated { get; set; }
+        public NotifyFileOverwrittenCallback OnNotifyFileOverwritten { get; set; }
+        public NotifyFileHandleClosedNoModificationCallback OnNotifyFileHandleClosedNoModification { get; set; }
+        public NotifyFileHandleClosedFileModifiedOrDeletedCallback OnNotifyFileHandleClosedFileModifiedOrDeleted { get; set; }
+        public NotifyFilePreConvertToFullCallback OnNotifyFilePreConvertToFull { get; set; }
+        public NotifyFileRenamedCallback OnNotifyFileRenamed { get; set; }
+        public NotifyHardlinkCreatedCallback OnNotifyHardlinkCreated { get; set; }
+        public NotifyPreDeleteCallback OnNotifyPreDelete { get; set; }
+        public NotifyPreRenameCallback OnNotifyPreRename { get; set; }
+        public NotifyPreCreateHardlinkCallback OnNotifyPreCreateHardlink { get; set; }
+        public QueryFileNameCallback OnQueryFileName { get; set; }
+
+        public Guid VirtualizationInstanceId => _instanceId;
+        public IRequiredCallbacks RequiredCallbacks => _requiredCallbacks;
+
+        /// <summary>
+        /// Marks the specified directory as a virtualization root.
+        /// </summary>
+        public static HResult MarkDirectoryAsVirtualizationRoot(string rootPath, Guid virtualizationInstanceGuid)
+        {
+            int hr = ProjFSNative.PrjMarkDirectoryAsVirtualizationRoot(
+                rootPath,
+                null,
+                IntPtr.Zero,
+                ref virtualizationInstanceGuid);
+            return (HResult)hr;
+        }
+
+        public unsafe HResult StartVirtualizing(IRequiredCallbacks requiredCallbacks)
+        {
+            _requiredCallbacks = requiredCallbacks ?? throw new ArgumentNullException(nameof(requiredCallbacks));
+
+            _selfHandle = GCHandle.Alloc(this);
+
+            // Create managed delegates for native callbacks (prevents GC)
+            _startDirEnumDelegate = NativeStartDirectoryEnumeration;
+            _endDirEnumDelegate = NativeEndDirectoryEnumeration;
+            _getDirEnumDelegate = NativeGetDirectoryEnumeration;
+            _getPlaceholderInfoDelegate = NativeGetPlaceholderInfo;
+            _getFileDataDelegate = NativeGetFileData;
+            _queryFileNameDelegate = NativeQueryFileName;
+            _notificationDelegate = NativeNotification;
+            _cancelCommandDelegate = NativeCancelCommand;
+
+            var callbacks = new PRJ_CALLBACKS
+            {
+                StartDirectoryEnumerationCallback = Marshal.GetFunctionPointerForDelegate(_startDirEnumDelegate),
+                EndDirectoryEnumerationCallback = Marshal.GetFunctionPointerForDelegate(_endDirEnumDelegate),
+                GetDirectoryEnumerationCallback = Marshal.GetFunctionPointerForDelegate(_getDirEnumDelegate),
+                GetPlaceholderInfoCallback = Marshal.GetFunctionPointerForDelegate(_getPlaceholderInfoDelegate),
+                GetFileDataCallback = Marshal.GetFunctionPointerForDelegate(_getFileDataDelegate),
+                QueryFileNameCallback = Marshal.GetFunctionPointerForDelegate(_queryFileNameDelegate),
+                NotificationCallback = Marshal.GetFunctionPointerForDelegate(_notificationDelegate),
+                CancelCommandCallback = Marshal.GetFunctionPointerForDelegate(_cancelCommandDelegate),
+            };
+
+            // Set up notification mappings
+            var nativeMappings = new PRJ_NOTIFICATION_MAPPING_NATIVE[_notificationMappings.Count];
+            var pinnedStrings = new GCHandle[_notificationMappings.Count];
+
+            try
+            {
+                for (int i = 0; i < _notificationMappings.Count; i++)
+                {
+                    string root = _notificationMappings[i].NotificationRoot ?? string.Empty;
+                    pinnedStrings[i] = GCHandle.Alloc(root, GCHandleType.Pinned);
+                    nativeMappings[i] = new PRJ_NOTIFICATION_MAPPING_NATIVE
+                    {
+                        NotificationBitMask = (uint)_notificationMappings[i].NotificationMask,
+                        NotificationRoot = pinnedStrings[i].AddrOfPinnedObject(),
+                    };
+                }
+
+                var options = new PRJ_STARTVIRTUALIZING_OPTIONS
+                {
+                    Flags = _enableNegativePathCache ? PRJ_FLAG_USE_NEGATIVE_PATH_CACHE : PRJ_FLAG_NONE,
+                    PoolThreadCount = _poolThreadCount,
+                    ConcurrentThreadCount = _concurrentThreadCount,
+                    NotificationMappingsCount = (uint)nativeMappings.Length,
+                };
+
+                GCHandle mappingsHandle = default;
+                try
+                {
+                    if (nativeMappings.Length > 0)
+                    {
+                        mappingsHandle = GCHandle.Alloc(nativeMappings, GCHandleType.Pinned);
+                        options.NotificationMappings = mappingsHandle.AddrOfPinnedObject();
+                    }
+
+                    int hr = ProjFSNative.PrjStartVirtualizing(
+                        _rootPath,
+                        ref callbacks,
+                        GCHandle.ToIntPtr(_selfHandle),
+                        ref options,
+                        out _context);
+
+                    if (hr < 0)
+                    {
+                        _selfHandle.Free();
+                    }
+
+                    return (HResult)hr;
+                }
+                finally
+                {
+                    if (mappingsHandle.IsAllocated)
+                    {
+                        mappingsHandle.Free();
+                    }
+                }
+            }
+            finally
+            {
+                for (int i = 0; i < pinnedStrings.Length; i++)
+                {
+                    if (pinnedStrings[i].IsAllocated)
+                    {
+                        pinnedStrings[i].Free();
+                    }
+                }
+            }
+        }
+
+        public void StopVirtualizing()
+        {
+            if (_context != IntPtr.Zero)
+            {
+                ProjFSNative.PrjStopVirtualizing(_context);
+                _context = IntPtr.Zero;
+            }
+
+            if (_selfHandle.IsAllocated)
+            {
+                _selfHandle.Free();
+            }
+        }
+
+        public HResult ClearNegativePathCache(out uint totalEntryNumber)
+        {
+            int hr = ProjFSNative.PrjClearNegativePathCache(_context, out totalEntryNumber);
+            return (HResult)hr;
+        }
+
+        public HResult DeleteFile(string relativePath, UpdateType updateFlags, out UpdateFailureCause failureReason)
+        {
+            int hr = ProjFSNative.PrjDeleteFile(_context, relativePath, (uint)updateFlags, out uint cause);
+            failureReason = (UpdateFailureCause)cause;
+            return (HResult)hr;
+        }
+
+        public unsafe HResult WritePlaceholderInfo(
+            string relativePath,
+            DateTime creationTime,
+            DateTime lastAccessTime,
+            DateTime lastWriteTime,
+            DateTime changeTime,
+            FileAttributes fileAttributes,
+            long endOfFile,
+            bool isDirectory,
+            byte[] contentId,
+            byte[] providerId)
+        {
+            var info = new PRJ_PLACEHOLDER_INFO();
+            info.FileBasicInfo.IsDirectory = isDirectory ? (byte)1 : (byte)0;
+            info.FileBasicInfo.FileSize = endOfFile;
+            info.FileBasicInfo.CreationTime = creationTime.ToFileTimeUtc();
+            info.FileBasicInfo.LastAccessTime = lastAccessTime.ToFileTimeUtc();
+            info.FileBasicInfo.LastWriteTime = lastWriteTime.ToFileTimeUtc();
+            info.FileBasicInfo.ChangeTime = changeTime.ToFileTimeUtc();
+            info.FileBasicInfo.FileAttributes = (uint)fileAttributes;
+
+            CopyIdToVersionInfo(contentId, providerId, ref info.VersionInfo);
+
+            int hr = ProjFSNative.PrjWritePlaceholderInfo(
+                _context,
+                relativePath,
+                ref info,
+                (uint)Marshal.SizeOf<PRJ_PLACEHOLDER_INFO>());
+
+            return (HResult)hr;
+        }
+
+        public unsafe HResult UpdateFileIfNeeded(
+            string relativePath,
+            DateTime creationTime,
+            DateTime lastAccessTime,
+            DateTime lastWriteTime,
+            DateTime changeTime,
+            FileAttributes fileAttributes,
+            long endOfFile,
+            byte[] contentId,
+            byte[] providerId,
+            UpdateType updateFlags,
+            out UpdateFailureCause failureReason)
+        {
+            var info = new PRJ_PLACEHOLDER_INFO();
+            info.FileBasicInfo.IsDirectory = 0;
+            info.FileBasicInfo.FileSize = endOfFile;
+            info.FileBasicInfo.CreationTime = creationTime.ToFileTimeUtc();
+            info.FileBasicInfo.LastAccessTime = lastAccessTime.ToFileTimeUtc();
+            info.FileBasicInfo.LastWriteTime = lastWriteTime.ToFileTimeUtc();
+            info.FileBasicInfo.ChangeTime = changeTime.ToFileTimeUtc();
+            info.FileBasicInfo.FileAttributes = (uint)fileAttributes;
+
+            CopyIdToVersionInfo(contentId, providerId, ref info.VersionInfo);
+
+            int hr = ProjFSNative.PrjUpdateFileIfNeeded(
+                _context,
+                relativePath,
+                ref info,
+                (uint)Marshal.SizeOf<PRJ_PLACEHOLDER_INFO>(),
+                (uint)updateFlags,
+                out uint cause);
+
+            failureReason = (UpdateFailureCause)cause;
+            return (HResult)hr;
+        }
+
+        public HResult CompleteCommand(int commandId, HResult completionResult)
+        {
+            int hr = ProjFSNative.PrjCompleteCommand(_context, commandId, (int)completionResult, IntPtr.Zero);
+            return (HResult)hr;
+        }
+
+        public HResult CompleteCommand(int commandId, NotificationType newNotificationMask)
+        {
+            var extParams = new PRJ_COMPLETE_COMMAND_EXTENDED_PARAMETERS
+            {
+                CommandType = PRJ_COMPLETE_COMMAND_TYPE_NOTIFICATION,
+                NotificationMask = (uint)newNotificationMask,
+            };
+
+            int hr = ProjFSNative.PrjCompleteCommandWithNotification(_context, commandId, 0, ref extParams);
+            return (HResult)hr;
+        }
+
+        public HResult CompleteCommand(int commandId, IDirectoryEnumerationResults results)
+        {
+            // Not used by VFSForGit — return OK
+            return HResult.Ok;
+        }
+
+        public HResult CompleteCommand(int commandId)
+        {
+            int hr = ProjFSNative.PrjCompleteCommand(_context, commandId, 0, IntPtr.Zero);
+            return (HResult)hr;
+        }
+
+        public IWriteBuffer CreateWriteBuffer(uint desiredBufferSize)
+        {
+            return new WriteBuffer(_context, desiredBufferSize);
+        }
+
+        public IWriteBuffer CreateWriteBuffer(ulong byteOffset, uint length, out ulong alignedByteOffset, out uint alignedLength)
+        {
+            // ProjFS requires sector-aligned writes. The simple approach is to allocate
+            // a buffer large enough and let the caller handle offsets.
+            alignedByteOffset = byteOffset;
+            alignedLength = length;
+            return new WriteBuffer(_context, length);
+        }
+
+        public HResult WriteFileData(Guid dataStreamId, IWriteBuffer buffer, ulong byteOffset, uint length)
+        {
+            int hr = ProjFSNative.PrjWriteFileData(_context, ref dataStreamId, buffer.Pointer, byteOffset, length);
+            return (HResult)hr;
+        }
+
+        public unsafe HResult MarkDirectoryAsPlaceholder(string targetDirectoryPath, byte[] contentId, byte[] providerId)
+        {
+            var versionInfo = new PRJ_PLACEHOLDER_VERSION_INFO();
+            CopyIdToVersionInfo(contentId, providerId, ref versionInfo);
+
+            int hr = ProjFSNative.PrjMarkDirectoryAsPlaceholder(
+                Path.GetDirectoryName(targetDirectoryPath) ?? targetDirectoryPath,
+                Path.GetFileName(targetDirectoryPath),
+                ref versionInfo,
+                ref _instanceId);
+
+            return (HResult)hr;
+        }
+
+        // ===========================================================
+        // Native callback implementations
+        // ===========================================================
+
+        private static VirtualizationInstance GetInstance(IntPtr instanceContext)
+        {
+            return (VirtualizationInstance)GCHandle.FromIntPtr(instanceContext).Target;
+        }
+
+        private static unsafe int NativeStartDirectoryEnumeration(PRJ_CALLBACK_DATA* pData, Guid* pEnumId)
+        {
+            try
+            {
+                var inst = GetInstance(pData->InstanceContext);
+                string virtualPath = Marshal.PtrToStringUni(pData->FilePathName);
+                string processName = Marshal.PtrToStringUni(pData->TriggeringProcessImageFileName);
+                return (int)inst._requiredCallbacks.StartDirectoryEnumerationCallback(
+                    pData->CommandId, *pEnumId, virtualPath, pData->TriggeringProcessId, processName);
+            }
+            catch
+            {
+                return (int)HResult.InternalError;
+            }
+        }
+
+        private static unsafe int NativeEndDirectoryEnumeration(PRJ_CALLBACK_DATA* pData, Guid* pEnumId)
+        {
+            try
+            {
+                var inst = GetInstance(pData->InstanceContext);
+                return (int)inst._requiredCallbacks.EndDirectoryEnumerationCallback(*pEnumId);
+            }
+            catch
+            {
+                return (int)HResult.InternalError;
+            }
+        }
+
+        private static unsafe int NativeGetDirectoryEnumeration(PRJ_CALLBACK_DATA* pData, Guid* pEnumId, IntPtr searchExpression, IntPtr dirEntryBufferHandle)
+        {
+            try
+            {
+                var inst = GetInstance(pData->InstanceContext);
+                string filterFileName = searchExpression != IntPtr.Zero ? Marshal.PtrToStringUni(searchExpression) : null;
+                bool restartScan = (pData->Flags & PRJ_CB_DATA_FLAG_ENUM_RESTART_SCAN) != 0;
+                var results = new DirectoryEnumerationResults(dirEntryBufferHandle);
+                return (int)inst._requiredCallbacks.GetDirectoryEnumerationCallback(
+                    pData->CommandId, *pEnumId, filterFileName, restartScan, results);
+            }
+            catch
+            {
+                return (int)HResult.InternalError;
+            }
+        }
+
+        private static unsafe int NativeGetPlaceholderInfo(PRJ_CALLBACK_DATA* pData)
+        {
+            try
+            {
+                var inst = GetInstance(pData->InstanceContext);
+                string virtualPath = Marshal.PtrToStringUni(pData->FilePathName);
+                string processName = Marshal.PtrToStringUni(pData->TriggeringProcessImageFileName);
+                return (int)inst._requiredCallbacks.GetPlaceholderInfoCallback(
+                    pData->CommandId, virtualPath, pData->TriggeringProcessId, processName);
+            }
+            catch
+            {
+                return (int)HResult.InternalError;
+            }
+        }
+
+        private static unsafe int NativeGetFileData(PRJ_CALLBACK_DATA* pData, ulong byteOffset, uint length)
+        {
+            try
+            {
+                var inst = GetInstance(pData->InstanceContext);
+                string virtualPath = Marshal.PtrToStringUni(pData->FilePathName);
+                string processName = Marshal.PtrToStringUni(pData->TriggeringProcessImageFileName);
+
+                byte[] contentId = null;
+                byte[] providerId = null;
+                if (pData->VersionInfo != IntPtr.Zero)
+                {
+                    var versionInfo = (PRJ_PLACEHOLDER_VERSION_INFO*)pData->VersionInfo;
+                    contentId = new byte[PlaceholderIdLength];
+                    providerId = new byte[PlaceholderIdLength];
+                    fixed (byte* pContent = contentId, pProvider = providerId)
+                    {
+                        Buffer.MemoryCopy(versionInfo->ContentID, pContent, PlaceholderIdLength, PlaceholderIdLength);
+                        Buffer.MemoryCopy(versionInfo->ProviderID, pProvider, PlaceholderIdLength, PlaceholderIdLength);
+                    }
+                }
+
+                return (int)inst._requiredCallbacks.GetFileDataCallback(
+                    pData->CommandId, virtualPath, byteOffset, length,
+                    pData->DataStreamId, contentId, providerId,
+                    pData->TriggeringProcessId, processName);
+            }
+            catch
+            {
+                return (int)HResult.InternalError;
+            }
+        }
+
+        private static unsafe int NativeQueryFileName(PRJ_CALLBACK_DATA* pData)
+        {
+            try
+            {
+                var inst = GetInstance(pData->InstanceContext);
+                if (inst.OnQueryFileName != null)
+                {
+                    string virtualPath = Marshal.PtrToStringUni(pData->FilePathName);
+                    return (int)inst.OnQueryFileName(virtualPath);
+                }
+
+                return (int)HResult.Ok;
+            }
+            catch
+            {
+                return (int)HResult.InternalError;
+            }
+        }
+
+        private static unsafe int NativeNotification(PRJ_CALLBACK_DATA* pData, byte isDirectory, int notification, IntPtr destinationFileName, IntPtr operationParameters)
+        {
+            try
+            {
+                var inst = GetInstance(pData->InstanceContext);
+                string virtualPath = Marshal.PtrToStringUni(pData->FilePathName);
+                string destPath = destinationFileName != IntPtr.Zero ? Marshal.PtrToStringUni(destinationFileName) : null;
+                bool isDir = isDirectory != 0;
+                uint processId = pData->TriggeringProcessId;
+                string processName = Marshal.PtrToStringUni(pData->TriggeringProcessImageFileName);
+
+                switch (notification)
+                {
+                    case PRJ_NOTIFICATION_FILE_OPENED:
+                        if (inst.OnNotifyFileOpened != null)
+                        {
+                            bool allow = inst.OnNotifyFileOpened(virtualPath, isDir, processId, processName, out NotificationType mask);
+                            if (!allow)
+                            {
+                                return (int)HResult.AccessDenied;
+                            }
+
+                            WriteNotificationMask(operationParameters, (uint)mask);
+                        }
+
+                        break;
+
+                    case PRJ_NOTIFICATION_NEW_FILE_CREATED:
+                        if (inst.OnNotifyNewFileCreated != null)
+                        {
+                            inst.OnNotifyNewFileCreated(virtualPath, isDir, processId, processName, out NotificationType mask);
+                            WriteNotificationMask(operationParameters, (uint)mask);
+                        }
+
+                        break;
+
+                    case PRJ_NOTIFICATION_FILE_OVERWRITTEN:
+                        if (inst.OnNotifyFileOverwritten != null)
+                        {
+                            inst.OnNotifyFileOverwritten(virtualPath, isDir, processId, processName, out NotificationType mask);
+                            WriteNotificationMask(operationParameters, (uint)mask);
+                        }
+
+                        break;
+
+                    case PRJ_NOTIFICATION_PRE_DELETE:
+                        if (inst.OnNotifyPreDelete != null)
+                        {
+                            bool allow = inst.OnNotifyPreDelete(virtualPath, isDir, processId, processName);
+                            if (!allow)
+                            {
+                                return (int)HResult.AccessDenied;
+                            }
+                        }
+
+                        break;
+
+                    case PRJ_NOTIFICATION_PRE_RENAME:
+                        if (inst.OnNotifyPreRename != null)
+                        {
+                            bool allow = inst.OnNotifyPreRename(virtualPath, destPath, processId, processName);
+                            if (!allow)
+                            {
+                                return (int)HResult.AccessDenied;
+                            }
+                        }
+
+                        break;
+
+                    case PRJ_NOTIFICATION_PRE_SET_HARDLINK:
+                        if (inst.OnNotifyPreCreateHardlink != null)
+                        {
+                            bool allow = inst.OnNotifyPreCreateHardlink(virtualPath, destPath, processId, processName);
+                            if (!allow)
+                            {
+                                return (int)HResult.AccessDenied;
+                            }
+                        }
+
+                        break;
+
+                    case PRJ_NOTIFICATION_FILE_RENAMED:
+                        if (inst.OnNotifyFileRenamed != null)
+                        {
+                            inst.OnNotifyFileRenamed(virtualPath, destPath, isDir, processId, processName, out NotificationType mask);
+                            WriteNotificationMask(operationParameters, (uint)mask);
+                        }
+
+                        break;
+
+                    case PRJ_NOTIFICATION_HARDLINK_CREATED:
+                        inst.OnNotifyHardlinkCreated?.Invoke(virtualPath, destPath, processId, processName);
+                        break;
+
+                    case PRJ_NOTIFICATION_FILE_HANDLE_CLOSED_NO_MODIFICATION:
+                        inst.OnNotifyFileHandleClosedNoModification?.Invoke(virtualPath, isDir, processId, processName);
+                        break;
+
+                    case PRJ_NOTIFICATION_FILE_HANDLE_CLOSED_FILE_MODIFIED:
+                        inst.OnNotifyFileHandleClosedFileModifiedOrDeleted?.Invoke(
+                            virtualPath, isDir, isFileModified: true, isFileDeleted: false, processId, processName);
+                        break;
+
+                    case PRJ_NOTIFICATION_FILE_HANDLE_CLOSED_FILE_DELETED:
+                        {
+                            bool isFileModified = false;
+                            if (operationParameters != IntPtr.Zero)
+                            {
+                                // PRJ_NOTIFICATION_PARAMETERS.FileDeletedOnHandleClose.IsFileModified
+                                isFileModified = Marshal.ReadByte(operationParameters) != 0;
+                            }
+
+                            inst.OnNotifyFileHandleClosedFileModifiedOrDeleted?.Invoke(
+                                virtualPath, isDir, isFileModified, isFileDeleted: true, processId, processName);
+                        }
+
+                        break;
+
+                    case PRJ_NOTIFICATION_FILE_PRE_CONVERT_TO_FULL:
+                        if (inst.OnNotifyFilePreConvertToFull != null)
+                        {
+                            bool allow = inst.OnNotifyFilePreConvertToFull(virtualPath, processId, processName);
+                            if (!allow)
+                            {
+                                return (int)HResult.AccessDenied;
+                            }
+                        }
+
+                        break;
+                }
+
+                return (int)HResult.Ok;
+            }
+            catch
+            {
+                return (int)HResult.InternalError;
+            }
+        }
+
+        private static unsafe int NativeCancelCommand(PRJ_CALLBACK_DATA* pData)
+        {
+            try
+            {
+                var inst = GetInstance(pData->InstanceContext);
+                inst.OnCancelCommand?.Invoke(pData->CommandId);
+                return (int)HResult.Ok;
+            }
+            catch
+            {
+                return (int)HResult.InternalError;
+            }
+        }
+
+        // ===========================================================
+        // Helper methods
+        // ===========================================================
+
+        private static unsafe void CopyIdToVersionInfo(byte[] contentId, byte[] providerId, ref PRJ_PLACEHOLDER_VERSION_INFO versionInfo)
+        {
+            if (contentId != null)
+            {
+                int len = Math.Min(contentId.Length, PlaceholderIdLength);
+                fixed (byte* pDst = versionInfo.ContentID, pSrc = contentId)
+                {
+                    Buffer.MemoryCopy(pSrc, pDst, PlaceholderIdLength, len);
+                }
+            }
+
+            if (providerId != null)
+            {
+                int len = Math.Min(providerId.Length, PlaceholderIdLength);
+                fixed (byte* pDst = versionInfo.ProviderID, pSrc = providerId)
+                {
+                    Buffer.MemoryCopy(pSrc, pDst, PlaceholderIdLength, len);
+                }
+            }
+        }
+
+        private static void WriteNotificationMask(IntPtr operationParameters, uint mask)
+        {
+            // PRJ_NOTIFICATION_PARAMETERS is a union; for post-create/overwrite/rename,
+            // the first field is NotificationMask (PRJ_NOTIFY_TYPES, 4 bytes)
+            if (operationParameters != IntPtr.Zero)
+            {
+                Marshal.WriteInt32(operationParameters, unchecked((int)mask));
+            }
+        }
+    }
+}
