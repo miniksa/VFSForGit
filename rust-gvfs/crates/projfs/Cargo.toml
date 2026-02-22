@@ -1,0 +1,11 @@
+[package]
+name = "projfs"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+windows = { workspace = true }
+windows-core = { workspace = true }
+widestring = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }

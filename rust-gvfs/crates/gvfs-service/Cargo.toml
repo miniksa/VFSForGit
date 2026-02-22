@@ -1,0 +1,18 @@
+[package]
+name = "gvfs-service"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "gvfs-service"
+path = "src/main.rs"
+
+[dependencies]
+gvfs-common = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+windows = { workspace = true }
+parking_lot = { workspace = true }

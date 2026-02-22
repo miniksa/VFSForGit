@@ -1,0 +1,29 @@
+[package]
+name = "gvfs-native-hooks"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "read-object"
+path = "src/bin/read_object.rs"
+
+[[bin]]
+name = "post-index-changed"
+path = "src/bin/post_index_changed.rs"
+
+[[bin]]
+name = "virtual-filesystem"
+path = "src/bin/virtual_filesystem.rs"
+
+[dependencies]
+gvfs-common = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+hex = { workspace = true }
+windows = { workspace = true }
+widestring = { workspace = true }
+
+[lib]
+name = "gvfs_native_hooks"
+path = "src/lib.rs"

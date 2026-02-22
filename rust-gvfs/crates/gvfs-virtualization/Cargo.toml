@@ -1,0 +1,22 @@
+[package]
+name = "gvfs-virtualization"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+projfs = { workspace = true }
+gvfs-common = { workspace = true }
+windows = { workspace = true }
+windows-core = { workspace = true }
+widestring = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+parking_lot = { workspace = true }
+crossbeam-channel = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+hex = { workspace = true }
+uuid = { workspace = true }
+tokio = { workspace = true }
+reqwest = { workspace = true }

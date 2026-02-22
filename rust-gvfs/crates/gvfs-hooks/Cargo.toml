@@ -1,0 +1,15 @@
+[package]
+name = "gvfs-hooks"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "gvfs-hooks"
+path = "src/main.rs"
+
+[dependencies]
+gvfs-common = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+windows = { workspace = true }
