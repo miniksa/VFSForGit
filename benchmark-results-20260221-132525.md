@@ -13,7 +13,8 @@
 ## Results
 
 | Benchmark | Production (ms) | .NET 10 (ms) | Delta | Change |
-|-----------|---------------:|-------------:|------:|--------|| Startup (gvfs version) | 53.5 ± 2.6 | 15.3 ± 1.1 | -38.2 (-71.4%) | **faster** |
+|-----------|---------------:|-------------:|------:|--------
+| Startup (gvfs version) | 53.5 ± 2.6 | 15.3 ± 1.1 | -38.2 (-71.4%) | **faster** |
 | Clone (small repo, no mount) | 5234.2 ± 101.4 | 5287.2 ± 127.4 | +53 (+1%) | ~same |
 | Mount (small repo) | 4603.4 ± 81.6 | 4147.7 ± 177.8 | -455.7 (-9.9%) | **faster** |
 | Status (pipe roundtrip) | 341.3 ± 13.8 | 179.4 ± 9.7 | -161.9 (-47.4%) | **faster** |

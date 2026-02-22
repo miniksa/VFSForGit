@@ -97,6 +97,7 @@ Fix: `TypeInfoPropertyName` to disambiguate.
 ### System.CommandLine (AOT branch)
 - Replaced CommandLineParser 2.6.0 with System.CommandLine 2.0.0-beta4
 - 15 verb commands with backward-compatible `version` subcommand
+- **Note:** Stable 2.0.x removed `InvocationContext` — migration planned as follow-up
 - `ExecuteVerb()` wrapper for VerbAbortedException handling
 
 ### WMI → P/Invoke (AOT branch)
