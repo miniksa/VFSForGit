@@ -81,13 +81,10 @@ Example: `GetStatus.Response`, `RegisterRepoRequest.Response`, `EnableAndAttachP
 ## Phase 5: Other Modernizations
 
 ### System.CommandLine
-Replaced CommandLineParser 2.6.0 with System.CommandLine 2.0.0-beta4.
+Replaced CommandLineParser 2.6.0 with System.CommandLine 2.0.3 (stable release).
 15 verb commands with backward-compatible `version` subcommand.
-
-> **Note:** The stable System.CommandLine 2.0.x release removed `InvocationContext`
-> from its API, which would require rewriting the handler registration pattern.
-> A future PR should migrate to the 2.0.x stable API. The beta4 package is fully
-> functional and used by many production projects.
+The stable 2.0.x release uses `SetAction` with `ParseResult` instead of the beta's
+`SetHandler` with `InvocationContext`.
 
 ### WMI → P/Invoke
 Rewrote `WindowsPhysicalDiskInfo.cs` from WMI/COM to `DeviceIoControl` P/Invoke.

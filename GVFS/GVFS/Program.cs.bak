@@ -3,7 +3,6 @@ using GVFS.Common;
 using GVFS.PlatformLoader;
 using System;
 using System.CommandLine;
-using System.CommandLine.Parsing;
 
 namespace GVFS
 {
@@ -41,7 +40,7 @@ namespace GVFS
         private static Option<string> CreateInternalUseOnlyOption()
         {
             var opt = new Option<string>("--internal_use_only", "This parameter is reserved for internal use.");
-            opt.Hidden = true;
+            opt.IsHidden = true;
             return opt;
         }
 
@@ -72,14 +71,12 @@ namespace GVFS
 
         private static Argument<string> CreateEnlistmentRootArgument(bool required = false)
         {
-            var arg = new Argument<string>("enlistment-root-path");
-            arg.Description = "Full or relative path to the GVFS enlistment root";
-            if (!required)
+            if (required)
             {
-                // Default: "" (set via constructor)
+                return new Argument<string>("enlistment-root-path", "Full or relative path to the GVFS enlistment root");
             }
 
-            return arg;
+            return new Argument<string>("enlistment-root-path", () => "", "Full or relative path to the GVFS enlistment root");
         }
 
         /// <summary>
@@ -98,21 +95,21 @@ namespace GVFS
         {
             var rootCommand = new RootCommand("GVFS: Virtual File System for Git");
 
-            rootCommand.Subcommands.Add(BuildCacheServerCommand());
-            rootCommand.Subcommands.Add(BuildCloneCommand());
-            rootCommand.Subcommands.Add(BuildConfigCommand());
-            rootCommand.Subcommands.Add(BuildDehydrateCommand());
-            rootCommand.Subcommands.Add(BuildDiagnoseCommand());
-            rootCommand.Subcommands.Add(BuildHealthCommand());
-            rootCommand.Subcommands.Add(BuildLogCommand());
-            rootCommand.Subcommands.Add(BuildMountCommand());
-            rootCommand.Subcommands.Add(BuildPrefetchCommand());
-            rootCommand.Subcommands.Add(BuildRepairCommand());
-            rootCommand.Subcommands.Add(BuildServiceCommand());
-            rootCommand.Subcommands.Add(BuildSparseCommand());
-            rootCommand.Subcommands.Add(BuildStatusCommand());
-            rootCommand.Subcommands.Add(BuildUnmountCommand());
-            rootCommand.Subcommands.Add(BuildUpgradeCommand());
+            rootCommand.AddCommand(BuildCacheServerCommand());
+            rootCommand.AddCommand(BuildCloneCommand());
+            rootCommand.AddCommand(BuildConfigCommand());
+            rootCommand.AddCommand(BuildDehydrateCommand());
+            rootCommand.AddCommand(BuildDiagnoseCommand());
+            rootCommand.AddCommand(BuildHealthCommand());
+            rootCommand.AddCommand(BuildLogCommand());
+            rootCommand.AddCommand(BuildMountCommand());
+            rootCommand.AddCommand(BuildPrefetchCommand());
+            rootCommand.AddCommand(BuildRepairCommand());
+            rootCommand.AddCommand(BuildServiceCommand());
+            rootCommand.AddCommand(BuildSparseCommand());
+            rootCommand.AddCommand(BuildStatusCommand());
+            rootCommand.AddCommand(BuildUnmountCommand());
+            rootCommand.AddCommand(BuildUpgradeCommand());
 
             // Backward-compatible 'version' subcommand (old CLI used 'gvfs version')
             var versionCmd = new Command("version", "Display version information");
@@ -120,7 +117,7 @@ namespace GVFS
             {
                 Console.WriteLine("GVFS " + ProcessHelper.GetCurrentProcessVersion());
             });
-            rootCommand.Subcommands.Add(versionCmd);
+            rootCommand.AddCommand(versionCmd);
 
             return rootCommand;
         }
@@ -129,37 +126,26 @@ namespace GVFS
 
         private static Command BuildCloneCommand()
         {
-            var repoUrlArg = new Argument<string>("repository-url");
-            repoUrlArg.Description = "The url of the repo";
-
+            var repoUrlArg = new Argument<string>("repository-url", "The url of the repo");
             var enlistmentRootArg = CreateEnlistmentRootArgument();
             var cacheServerUrlOpt = new Option<string>("--cache-server-url", "The url or friendly name of the cache server");
-
-            var branchOpt = new Option<string>("--branch", "Branch to checkout after clone");
-            branchOpt.Aliases.Add("-b");
-
-            var singleBranchOpt = new Option<bool>("--single-branch", "Use this option to only download metadata for the branch that will be checked out");
-            // Default: false (set via constructor)
-
-            var noMountOpt = new Option<bool>("--no-mount", "Use this option to only clone, but not mount the repo");
-            // Default: false (set via constructor)
-
-            var noPrefetchOpt = new Option<bool>("--no-prefetch", "Use this option to not prefetch commits after clone");
-            // Default: false (set via constructor)
-
+            var branchOpt = new Option<string>(new[] { "-b", "--branch" }, "Branch to checkout after clone");
+            var singleBranchOpt = new Option<bool>("--single-branch", () => false, "Use this option to only download metadata for the branch that will be checked out");
+            var noMountOpt = new Option<bool>("--no-mount", () => false, "Use this option to only clone, but not mount the repo");
+            var noPrefetchOpt = new Option<bool>("--no-prefetch", () => false, "Use this option to not prefetch commits after clone");
             var localCachePathOpt = new Option<string>("--local-cache-path", "Use this option to override the path for the local GVFS cache.");
             var internalOpt = CreateInternalUseOnlyOption();
 
             var cmd = new Command("clone", "Clone a git repo and mount it as a GVFS virtual repo");
-            cmd.Arguments.Add(repoUrlArg);
-            cmd.Arguments.Add(enlistmentRootArg);
-            cmd.Options.Add(cacheServerUrlOpt);
-            cmd.Options.Add(branchOpt);
-            cmd.Options.Add(singleBranchOpt);
-            cmd.Options.Add(noMountOpt);
-            cmd.Options.Add(noPrefetchOpt);
-            cmd.Options.Add(localCachePathOpt);
-            cmd.Options.Add(internalOpt);
+            cmd.AddArgument(repoUrlArg);
+            cmd.AddArgument(enlistmentRootArg);
+            cmd.AddOption(cacheServerUrlOpt);
+            cmd.AddOption(branchOpt);
+            cmd.AddOption(singleBranchOpt);
+            cmd.AddOption(noMountOpt);
+            cmd.AddOption(noPrefetchOpt);
+            cmd.AddOption(localCachePathOpt);
+            cmd.AddOption(internalOpt);
 
             cmd.SetAction((ParseResult parseResult) =>
             {
@@ -187,23 +173,17 @@ namespace GVFS
         private static Command BuildCacheServerCommand()
         {
             var enlistmentRootArg = CreateEnlistmentRootArgument();
-
             var setOpt = new Option<string>("--set", "Sets the cache server to the supplied name or url");
-
-            var getOpt = new Option<bool>("--get", "Outputs the current cache server information. This is the default.");
-            // Default: false (set via constructor)
-
-            var listOpt = new Option<bool>("--list", "List available cache servers for the remote repo");
-            // Default: false (set via constructor)
-
+            var getOpt = new Option<bool>("--get", () => false, "Outputs the current cache server information. This is the default.");
+            var listOpt = new Option<bool>("--list", () => false, "List available cache servers for the remote repo");
             var internalOpt = CreateInternalUseOnlyOption();
 
             var cmd = new Command("cache-server", "Manages the cache server configuration for an existing repo.");
-            cmd.Arguments.Add(enlistmentRootArg);
-            cmd.Options.Add(setOpt);
-            cmd.Options.Add(getOpt);
-            cmd.Options.Add(listOpt);
-            cmd.Options.Add(internalOpt);
+            cmd.AddArgument(enlistmentRootArg);
+            cmd.AddOption(setOpt);
+            cmd.AddOption(getOpt);
+            cmd.AddOption(listOpt);
+            cmd.AddOption(internalOpt);
 
             cmd.SetAction((ParseResult parseResult) =>
             {
@@ -223,24 +203,17 @@ namespace GVFS
         private static Command BuildDehydrateCommand()
         {
             var enlistmentRootArg = CreateEnlistmentRootArgument();
-
-            var confirmOpt = new Option<bool>("--confirm", "Pass in this flag to actually do the dehydrate");
-            // Default: false (set via constructor)
-
-            var noStatusOpt = new Option<bool>("--no-status", "Do not require a clean git status when dehydrating.");
-            // Default: false (set via constructor)
-
-            var foldersOpt = new Option<string>("--folders", "A semicolon-delimited list of folders to dehydrate.");
-            // Default: "" (set via constructor)
-
+            var confirmOpt = new Option<bool>("--confirm", () => false, "Pass in this flag to actually do the dehydrate");
+            var noStatusOpt = new Option<bool>("--no-status", () => false, "Do not require a clean git status when dehydrating.");
+            var foldersOpt = new Option<string>("--folders", () => "", "A semicolon-delimited list of folders to dehydrate.");
             var internalOpt = CreateInternalUseOnlyOption();
 
             var cmd = new Command("dehydrate", "EXPERIMENTAL FEATURE - Fully dehydrate a GVFS repo");
-            cmd.Arguments.Add(enlistmentRootArg);
-            cmd.Options.Add(confirmOpt);
-            cmd.Options.Add(noStatusOpt);
-            cmd.Options.Add(foldersOpt);
-            cmd.Options.Add(internalOpt);
+            cmd.AddArgument(enlistmentRootArg);
+            cmd.AddOption(confirmOpt);
+            cmd.AddOption(noStatusOpt);
+            cmd.AddOption(foldersOpt);
+            cmd.AddOption(internalOpt);
 
             cmd.SetAction((ParseResult parseResult) =>
             {
@@ -263,8 +236,8 @@ namespace GVFS
             var internalOpt = CreateInternalUseOnlyOption();
 
             var cmd = new Command("diagnose", "Diagnose issues with a GVFS repo");
-            cmd.Arguments.Add(enlistmentRootArg);
-            cmd.Options.Add(internalOpt);
+            cmd.AddArgument(enlistmentRootArg);
+            cmd.AddOption(internalOpt);
 
             cmd.SetAction((ParseResult parseResult) =>
             {
@@ -281,25 +254,17 @@ namespace GVFS
         private static Command BuildHealthCommand()
         {
             var enlistmentRootArg = CreateEnlistmentRootArgument();
-
-            var displayCountOpt = new Option<int>("-n", "Only display the <n> most hydrated directories in the output");
-            // Default: 5 (set via constructor)
-
-            var directoryOpt = new Option<string>("--directory", "Get the health of a specific directory");
-            directoryOpt.Aliases.Add("-d");
-
-            var statusOpt = new Option<bool>("--status", "Display only the hydration % of the repository");
-            statusOpt.Aliases.Add("-s");
-            // Default: false (set via constructor)
-
+            var displayCountOpt = new Option<int>("-n", () => 5, "Only display the <n> most hydrated directories in the output");
+            var directoryOpt = new Option<string>(new[] { "-d", "--directory" }, "Get the health of a specific directory");
+            var statusOpt = new Option<bool>(new[] { "-s", "--status" }, () => false, "Display only the hydration % of the repository");
             var internalOpt = CreateInternalUseOnlyOption();
 
             var cmd = new Command("health", "EXPERIMENTAL FEATURE - Measure the health of the repository");
-            cmd.Arguments.Add(enlistmentRootArg);
-            cmd.Options.Add(displayCountOpt);
-            cmd.Options.Add(directoryOpt);
-            cmd.Options.Add(statusOpt);
-            cmd.Options.Add(internalOpt);
+            cmd.AddArgument(enlistmentRootArg);
+            cmd.AddOption(displayCountOpt);
+            cmd.AddOption(directoryOpt);
+            cmd.AddOption(statusOpt);
+            cmd.AddOption(internalOpt);
 
             cmd.SetAction((ParseResult parseResult) =>
             {
@@ -319,24 +284,19 @@ namespace GVFS
         private static Command BuildMountCommand()
         {
             var enlistmentRootArg = CreateEnlistmentRootArgument();
-
-            var verbosityOpt = new Option<string>("--verbosity",
+            var verbosityOpt = new Option<string>(new[] { "-v", "--verbosity" },
+                () => GVFSConstants.VerbParameters.Mount.DefaultVerbosity,
                 "Sets the verbosity of console logging. Accepts: Verbose, Informational, Warning, Error");
-            verbosityOpt.Aliases.Add("-v");
-            // Default: GVFSConstants.VerbParameters.Mount.DefaultVerbosity (set via constructor)
-
-            var keywordsOpt = new Option<string>("--keywords",
+            var keywordsOpt = new Option<string>(new[] { "-k", "--keywords" },
+                () => GVFSConstants.VerbParameters.Mount.DefaultKeywords,
                 "A CSV list of logging filter keywords. Accepts: Any, Network");
-            keywordsOpt.Aliases.Add("-k");
-            // Default: GVFSConstants.VerbParameters.Mount.DefaultKeywords (set via constructor)
-
             var internalOpt = CreateInternalUseOnlyOption();
 
             var cmd = new Command("mount", "Mount a GVFS virtual repo");
-            cmd.Arguments.Add(enlistmentRootArg);
-            cmd.Options.Add(verbosityOpt);
-            cmd.Options.Add(keywordsOpt);
-            cmd.Options.Add(internalOpt);
+            cmd.AddArgument(enlistmentRootArg);
+            cmd.AddOption(verbosityOpt);
+            cmd.AddOption(keywordsOpt);
+            cmd.AddOption(internalOpt);
 
             cmd.SetAction((ParseResult parseResult) =>
             {
@@ -355,49 +315,29 @@ namespace GVFS
         private static Command BuildPrefetchCommand()
         {
             var enlistmentRootArg = CreateEnlistmentRootArgument();
-
-            var filesOpt = new Option<string>("--files", "A semicolon-delimited list of files to fetch.");
-            // Default: "" (set via constructor)
-
-            var foldersOpt = new Option<string>("--folders", "A semicolon-delimited list of folders to fetch.");
-            // Default: "" (set via constructor)
-
-            var foldersListOpt = new Option<string>("--folders-list", "A file containing line-delimited list of folders to fetch.");
-            // Default: "" (set via constructor)
-
-            var stdinFilesOpt = new Option<bool>("--stdin-files-list", "Load file list from stdin.");
-            // Default: false (set via constructor)
-
-            var stdinFoldersOpt = new Option<bool>("--stdin-folders-list", "Load folder list from stdin.");
-            // Default: false (set via constructor)
-
-            var filesListOpt = new Option<string>("--files-list", "A file containing line-delimited list of files to fetch.");
-            // Default: "" (set via constructor)
-
-            var hydrateOpt = new Option<bool>("--hydrate", "Also hydrate files in the working directory.");
-            // Default: false (set via constructor)
-
-            var commitsOpt = new Option<bool>("--commits", "Fetch the latest set of commit and tree packs.");
-            commitsOpt.Aliases.Add("-c");
-            // Default: false (set via constructor)
-
-            var verboseOpt = new Option<bool>("--verbose", "Show all outputs on the console.");
-            // Default: false (set via constructor)
-
+            var filesOpt = new Option<string>("--files", () => "", "A semicolon-delimited list of files to fetch.");
+            var foldersOpt = new Option<string>("--folders", () => "", "A semicolon-delimited list of folders to fetch.");
+            var foldersListOpt = new Option<string>("--folders-list", () => "", "A file containing line-delimited list of folders to fetch.");
+            var stdinFilesOpt = new Option<bool>("--stdin-files-list", () => false, "Load file list from stdin.");
+            var stdinFoldersOpt = new Option<bool>("--stdin-folders-list", () => false, "Load folder list from stdin.");
+            var filesListOpt = new Option<string>("--files-list", () => "", "A file containing line-delimited list of files to fetch.");
+            var hydrateOpt = new Option<bool>("--hydrate", () => false, "Also hydrate files in the working directory.");
+            var commitsOpt = new Option<bool>(new[] { "-c", "--commits" }, () => false, "Fetch the latest set of commit and tree packs.");
+            var verboseOpt = new Option<bool>("--verbose", () => false, "Show all outputs on the console.");
             var internalOpt = CreateInternalUseOnlyOption();
 
             var cmd = new Command("prefetch", "Prefetch remote objects for the current head");
-            cmd.Arguments.Add(enlistmentRootArg);
-            cmd.Options.Add(filesOpt);
-            cmd.Options.Add(foldersOpt);
-            cmd.Options.Add(foldersListOpt);
-            cmd.Options.Add(stdinFilesOpt);
-            cmd.Options.Add(stdinFoldersOpt);
-            cmd.Options.Add(filesListOpt);
-            cmd.Options.Add(hydrateOpt);
-            cmd.Options.Add(commitsOpt);
-            cmd.Options.Add(verboseOpt);
-            cmd.Options.Add(internalOpt);
+            cmd.AddArgument(enlistmentRootArg);
+            cmd.AddOption(filesOpt);
+            cmd.AddOption(foldersOpt);
+            cmd.AddOption(foldersListOpt);
+            cmd.AddOption(stdinFilesOpt);
+            cmd.AddOption(stdinFoldersOpt);
+            cmd.AddOption(filesListOpt);
+            cmd.AddOption(hydrateOpt);
+            cmd.AddOption(commitsOpt);
+            cmd.AddOption(verboseOpt);
+            cmd.AddOption(internalOpt);
 
             cmd.SetAction((ParseResult parseResult) =>
             {
@@ -423,51 +363,29 @@ namespace GVFS
         private static Command BuildSparseCommand()
         {
             var enlistmentRootArg = CreateEnlistmentRootArgument();
-
-            var setOpt = new Option<string>("--set",
+            var setOpt = new Option<string>(new[] { "-s", "--set" }, () => "",
                 "A semicolon-delimited list of repo root relative folders to use as the sparse set.");
-            setOpt.Aliases.Add("-s");
-            // Default: "" (set via constructor)
-
-            var fileOpt = new Option<string>("--file",
+            var fileOpt = new Option<string>(new[] { "-f", "--file" }, () => "",
                 "Path to a file with repo root relative folders to use as the sparse set.");
-            fileOpt.Aliases.Add("-f");
-            // Default: "" (set via constructor)
-
-            var addOpt = new Option<string>("--add",
+            var addOpt = new Option<string>(new[] { "-a", "--add" }, () => "",
                 "A semicolon-delimited list of repo root relative folders to include in the sparse set.");
-            addOpt.Aliases.Add("-a");
-            // Default: "" (set via constructor)
-
-            var removeOpt = new Option<string>("--remove",
+            var removeOpt = new Option<string>(new[] { "-r", "--remove" }, () => "",
                 "A semicolon-delimited list of repo root relative folders to remove from the sparse set.");
-            removeOpt.Aliases.Add("-r");
-            // Default: "" (set via constructor)
-
-            var listOpt = new Option<bool>("--list", "List of folders in the sparse set.");
-            listOpt.Aliases.Add("-l");
-            // Default: false (set via constructor)
-
-            var pruneOpt = new Option<bool>("--prune", "Remove any folders that are not in the list of sparse folders.");
-            pruneOpt.Aliases.Add("-p");
-            // Default: false (set via constructor)
-
-            var disableOpt = new Option<bool>("--disable", "Disable the sparse feature.");
-            disableOpt.Aliases.Add("-d");
-            // Default: false (set via constructor)
-
+            var listOpt = new Option<bool>(new[] { "-l", "--list" }, () => false, "List of folders in the sparse set.");
+            var pruneOpt = new Option<bool>(new[] { "-p", "--prune" }, () => false, "Remove any folders that are not in the list of sparse folders.");
+            var disableOpt = new Option<bool>(new[] { "-d", "--disable" }, () => false, "Disable the sparse feature.");
             var internalOpt = CreateInternalUseOnlyOption();
 
             var cmd = new Command("sparse", "EXPERIMENTAL: List, add, or remove from the list of folders included in VFS for Git's projection.");
-            cmd.Arguments.Add(enlistmentRootArg);
-            cmd.Options.Add(setOpt);
-            cmd.Options.Add(fileOpt);
-            cmd.Options.Add(addOpt);
-            cmd.Options.Add(removeOpt);
-            cmd.Options.Add(listOpt);
-            cmd.Options.Add(pruneOpt);
-            cmd.Options.Add(disableOpt);
-            cmd.Options.Add(internalOpt);
+            cmd.AddArgument(enlistmentRootArg);
+            cmd.AddOption(setOpt);
+            cmd.AddOption(fileOpt);
+            cmd.AddOption(addOpt);
+            cmd.AddOption(removeOpt);
+            cmd.AddOption(listOpt);
+            cmd.AddOption(pruneOpt);
+            cmd.AddOption(disableOpt);
+            cmd.AddOption(internalOpt);
 
             cmd.SetAction((ParseResult parseResult) =>
             {
@@ -494,8 +412,8 @@ namespace GVFS
             var internalOpt = CreateInternalUseOnlyOption();
 
             var cmd = new Command("status", "Get the status of the GVFS virtual repo");
-            cmd.Arguments.Add(enlistmentRootArg);
-            cmd.Options.Add(internalOpt);
+            cmd.AddArgument(enlistmentRootArg);
+            cmd.AddOption(internalOpt);
 
             cmd.SetAction((ParseResult parseResult) =>
             {
@@ -520,9 +438,9 @@ namespace GVFS
             var internalOpt = CreateInternalUseOnlyOption();
 
             var cmd = new Command("log", "Show the most recent GVFS log files");
-            cmd.Arguments.Add(enlistmentRootArg);
-            cmd.Options.Add(typeOpt);
-            cmd.Options.Add(internalOpt);
+            cmd.AddArgument(enlistmentRootArg);
+            cmd.AddOption(typeOpt);
+            cmd.AddOption(internalOpt);
 
             cmd.SetAction((ParseResult parseResult) =>
             {
@@ -540,16 +458,13 @@ namespace GVFS
         private static Command BuildRepairCommand()
         {
             var enlistmentRootArg = CreateEnlistmentRootArgument();
-
-            var confirmOpt = new Option<bool>("--confirm", "Pass in this flag to actually do repair(s).");
-            // Default: false (set via constructor)
-
+            var confirmOpt = new Option<bool>("--confirm", () => false, "Pass in this flag to actually do repair(s).");
             var internalOpt = CreateInternalUseOnlyOption();
 
             var cmd = new Command("repair", "EXPERIMENTAL FEATURE - Repair issues that prevent a GVFS repo from mounting");
-            cmd.Arguments.Add(enlistmentRootArg);
-            cmd.Options.Add(confirmOpt);
-            cmd.Options.Add(internalOpt);
+            cmd.AddArgument(enlistmentRootArg);
+            cmd.AddOption(confirmOpt);
+            cmd.AddOption(internalOpt);
 
             cmd.SetAction((ParseResult parseResult) =>
             {
@@ -567,16 +482,13 @@ namespace GVFS
         private static Command BuildUnmountCommand()
         {
             var enlistmentRootArg = CreateEnlistmentRootArgument();
-
-            var skipLockOpt = new Option<bool>("--skip-wait-for-lock", "Force unmount even if the lock is not available.");
-            // Default: false (set via constructor)
-
+            var skipLockOpt = new Option<bool>("--skip-wait-for-lock", () => false, "Force unmount even if the lock is not available.");
             var internalOpt = CreateInternalUseOnlyOption();
 
             var cmd = new Command("unmount", "Unmount a GVFS virtual repo");
-            cmd.Arguments.Add(enlistmentRootArg);
-            cmd.Options.Add(skipLockOpt);
-            cmd.Options.Add(internalOpt);
+            cmd.AddArgument(enlistmentRootArg);
+            cmd.AddOption(skipLockOpt);
+            cmd.AddOption(internalOpt);
 
             cmd.SetAction((ParseResult parseResult) =>
             {
@@ -597,29 +509,18 @@ namespace GVFS
 
         private static Command BuildConfigCommand()
         {
-            var keyArg = new Argument<string>("key");
-            keyArg.Description = "Name of setting that is to be set or read";
-            // Default: "" (set via constructor)
-
-            var valueArg = new Argument<string>("value");
-            valueArg.Description = "Value of setting to be set";
-            // Default: "" (set via constructor)
-
-            var listOpt = new Option<bool>("--list", "Show all settings");
-            listOpt.Aliases.Add("-l");
-            // Default: false (set via constructor)
-
-            var deleteOpt = new Option<string>("--delete", "Name of setting to delete");
-            deleteOpt.Aliases.Add("-d");
-
+            var keyArg = new Argument<string>("key", () => "", "Name of setting that is to be set or read");
+            var valueArg = new Argument<string>("value", () => "", "Value of setting to be set");
+            var listOpt = new Option<bool>(new[] { "-l", "--list" }, () => false, "Show all settings");
+            var deleteOpt = new Option<string>(new[] { "-d", "--delete" }, "Name of setting to delete");
             var internalOpt = CreateInternalUseOnlyOption();
 
             var cmd = new Command("config", "Get and set GVFS options.");
-            cmd.Arguments.Add(keyArg);
-            cmd.Arguments.Add(valueArg);
-            cmd.Options.Add(listOpt);
-            cmd.Options.Add(deleteOpt);
-            cmd.Options.Add(internalOpt);
+            cmd.AddArgument(keyArg);
+            cmd.AddArgument(valueArg);
+            cmd.AddOption(listOpt);
+            cmd.AddOption(deleteOpt);
+            cmd.AddOption(internalOpt);
 
             cmd.SetAction((ParseResult parseResult) =>
             {
@@ -637,22 +538,16 @@ namespace GVFS
 
         private static Command BuildServiceCommand()
         {
-            var mountAllOpt = new Option<bool>("--mount-all", "Mounts all repos");
-            // Default: false (set via constructor)
-
-            var unmountAllOpt = new Option<bool>("--unmount-all", "Unmounts all repos");
-            // Default: false (set via constructor)
-
-            var listMountedOpt = new Option<bool>("--list-mounted", "Prints a list of all mounted repos");
-            // Default: false (set via constructor)
-
+            var mountAllOpt = new Option<bool>("--mount-all", () => false, "Mounts all repos");
+            var unmountAllOpt = new Option<bool>("--unmount-all", () => false, "Unmounts all repos");
+            var listMountedOpt = new Option<bool>("--list-mounted", () => false, "Prints a list of all mounted repos");
             var internalOpt = CreateInternalUseOnlyOption();
 
             var cmd = new Command("service", "Runs commands for the GVFS service.");
-            cmd.Options.Add(mountAllOpt);
-            cmd.Options.Add(unmountAllOpt);
-            cmd.Options.Add(listMountedOpt);
-            cmd.Options.Add(internalOpt);
+            cmd.AddOption(mountAllOpt);
+            cmd.AddOption(unmountAllOpt);
+            cmd.AddOption(listMountedOpt);
+            cmd.AddOption(internalOpt);
 
             cmd.SetAction((ParseResult parseResult) =>
             {
@@ -669,22 +564,16 @@ namespace GVFS
 
         private static Command BuildUpgradeCommand()
         {
-            var confirmOpt = new Option<bool>("--confirm", "Pass in this flag to actually install the newest release");
-            // Default: false (set via constructor)
-
-            var dryRunOpt = new Option<bool>("--dry-run", "Display progress and errors, but don't install GVFS");
-            // Default: false (set via constructor)
-
-            var noVerifyOpt = new Option<bool>("--no-verify", "Do not verify NuGet packages after downloading them.");
-            // Default: false (set via constructor)
-
+            var confirmOpt = new Option<bool>("--confirm", () => false, "Pass in this flag to actually install the newest release");
+            var dryRunOpt = new Option<bool>("--dry-run", () => false, "Display progress and errors, but don't install GVFS");
+            var noVerifyOpt = new Option<bool>("--no-verify", () => false, "Do not verify NuGet packages after downloading them.");
             var internalOpt = CreateInternalUseOnlyOption();
 
             var cmd = new Command("upgrade", "Checks for new GVFS release, downloads and installs it when available.");
-            cmd.Options.Add(confirmOpt);
-            cmd.Options.Add(dryRunOpt);
-            cmd.Options.Add(noVerifyOpt);
-            cmd.Options.Add(internalOpt);
+            cmd.AddOption(confirmOpt);
+            cmd.AddOption(dryRunOpt);
+            cmd.AddOption(noVerifyOpt);
+            cmd.AddOption(internalOpt);
 
             cmd.SetAction((ParseResult parseResult) =>
             {
@@ -702,4 +591,3 @@ namespace GVFS
         #endregion
     }
 }
-
