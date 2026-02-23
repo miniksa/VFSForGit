@@ -48,33 +48,53 @@ internal static partial class GvfsPipe
 
     /// <summary>
     /// Resolve the final path name (follows junctions/symlinks).
+    /// Uses GetFinalPathNameByHandleW like the C++ version.
     /// </summary>
     internal static string GetFinalPath(string path)
     {
-        using var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read,
-            FileShare.ReadWrite | FileShare.Delete,
-            FileOptions.Asynchronous,
-            preallocationSize: 0);
+        // Open with FILE_FLAG_BACKUP_SEMANTICS to handle directories (same as C++)
+        IntPtr handle = CreateFileForPath(path);
+        if (handle == IntPtr.Zero || handle == new IntPtr(-1))
+            return path; // fallback
 
-        // Use GetFinalPathNameByHandle to resolve junctions
-        Span<char> buffer = stackalloc char[512];
-        uint len = GetFinalPathNameByHandle(handle.DangerousGetHandle(), buffer);
-        if (len == 0 || len > buffer.Length)
-            return path; // fallback to original
+        try
+        {
+            Span<char> buffer = stackalloc char[512];
+            uint len = GetFinalPathNameByHandle(handle, buffer);
+            if (len == 0 || len > (uint)buffer.Length)
+                return path;
 
-        string result = buffer[..(int)len].ToString();
+            string result = buffer[..(int)len].ToString();
 
-        // Strip \\?\ prefix
-        if (result.StartsWith(@"\\?\UNC\"))
-            return @"\\" + result[@"\\?\UNC\".Length..];
-        if (result.StartsWith(@"\\?\"))
-            return result[@"\\?\".Length..];
+            // Strip \\?\ prefix
+            if (result.StartsWith(@"\\?\UNC\"))
+                return @"\\" + result[@"\\?\UNC\".Length..];
+            if (result.StartsWith(@"\\?\"))
+                return result[@"\\?\".Length..];
 
-        return result;
+            return result;
+        }
+        finally
+        {
+            CloseHandle(handle);
+        }
     }
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial IntPtr CreateFileForPath(
+        string lpFileName,
+        uint dwDesiredAccess = 0x80, // FILE_READ_ATTRIBUTES
+        uint dwShareMode = 7, // FILE_SHARE_READ | WRITE | DELETE
+        IntPtr lpSecurityAttributes = default,
+        uint dwCreationDisposition = 3, // OPEN_EXISTING
+        uint dwFlagsAndAttributes = 0x02000000, // FILE_FLAG_BACKUP_SEMANTICS
+        IntPtr hTemplateFile = default);
 
     [LibraryImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     private static partial uint GetFinalPathNameByHandle(IntPtr hFile, Span<char> lpszFilePath, uint cchFilePath = 512, uint dwFlags = 0);
+
+    [LibraryImport("kernel32.dll")]
+    private static partial int CloseHandle(IntPtr hObject);
 
     /// <summary>
     /// Connect to the GVFS named pipe for the current enlistment.

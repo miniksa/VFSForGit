@@ -5,7 +5,7 @@
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
     <StackTraceSupport>false</StackTraceSupport>
-    <OptimizationPreference>Size</OptimizationPreference>
+    <OptimizationPreference>Speed</OptimizationPreference>
     <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
     <UseSystemResourceKeys>true</UseSystemResourceKeys>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
