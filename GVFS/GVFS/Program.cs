@@ -76,7 +76,9 @@ namespace GVFS
             arg.Description = "Full or relative path to the GVFS enlistment root";
             if (!required)
             {
-                // Default: "" (set via constructor)
+                // Make optional: zero or one values accepted. When omitted,
+                // ApplyEnlistmentRootDefault fills in the current directory.
+                arg.Arity = ArgumentArity.ZeroOrOne;
             }
 
             return arg;
