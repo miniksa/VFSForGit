@@ -40,7 +40,7 @@ namespace GVFS
 
         private static Option<string> CreateInternalUseOnlyOption()
         {
-            var opt = new Option<string>("--internal_use_only", "This parameter is reserved for internal use.");
+            var opt = new Option<string>("--internal_use_only") { Description = "This parameter is reserved for internal use." };
             opt.Hidden = true;
             return opt;
         }
@@ -133,21 +133,21 @@ namespace GVFS
             repoUrlArg.Description = "The url of the repo";
 
             var enlistmentRootArg = CreateEnlistmentRootArgument();
-            var cacheServerUrlOpt = new Option<string>("--cache-server-url", "The url or friendly name of the cache server");
+            var cacheServerUrlOpt = new Option<string>("--cache-server-url") { Description = "The url or friendly name of the cache server" };
 
-            var branchOpt = new Option<string>("--branch", "Branch to checkout after clone");
+            var branchOpt = new Option<string>("--branch") { Description = "Branch to checkout after clone" };
             branchOpt.Aliases.Add("-b");
 
-            var singleBranchOpt = new Option<bool>("--single-branch", "Use this option to only download metadata for the branch that will be checked out");
+            var singleBranchOpt = new Option<bool>("--single-branch") { Description = "Use this option to only download metadata for the branch that will be checked out" };
             // Default: false (set via constructor)
 
-            var noMountOpt = new Option<bool>("--no-mount", "Use this option to only clone, but not mount the repo");
+            var noMountOpt = new Option<bool>("--no-mount") { Description = "Use this option to only clone, but not mount the repo" };
             // Default: false (set via constructor)
 
-            var noPrefetchOpt = new Option<bool>("--no-prefetch", "Use this option to not prefetch commits after clone");
+            var noPrefetchOpt = new Option<bool>("--no-prefetch") { Description = "Use this option to not prefetch commits after clone" };
             // Default: false (set via constructor)
 
-            var localCachePathOpt = new Option<string>("--local-cache-path", "Use this option to override the path for the local GVFS cache.");
+            var localCachePathOpt = new Option<string>("--local-cache-path") { Description = "Use this option to override the path for the local GVFS cache." };
             var internalOpt = CreateInternalUseOnlyOption();
 
             var cmd = new Command("clone", "Clone a git repo and mount it as a GVFS virtual repo");
@@ -188,12 +188,12 @@ namespace GVFS
         {
             var enlistmentRootArg = CreateEnlistmentRootArgument();
 
-            var setOpt = new Option<string>("--set", "Sets the cache server to the supplied name or url");
+            var setOpt = new Option<string>("--set") { Description = "Sets the cache server to the supplied name or url" };
 
-            var getOpt = new Option<bool>("--get", "Outputs the current cache server information. This is the default.");
+            var getOpt = new Option<bool>("--get") { Description = "Outputs the current cache server information. This is the default." };
             // Default: false (set via constructor)
 
-            var listOpt = new Option<bool>("--list", "List available cache servers for the remote repo");
+            var listOpt = new Option<bool>("--list") { Description = "List available cache servers for the remote repo" };
             // Default: false (set via constructor)
 
             var internalOpt = CreateInternalUseOnlyOption();
@@ -224,13 +224,13 @@ namespace GVFS
         {
             var enlistmentRootArg = CreateEnlistmentRootArgument();
 
-            var confirmOpt = new Option<bool>("--confirm", "Pass in this flag to actually do the dehydrate");
+            var confirmOpt = new Option<bool>("--confirm") { Description = "Pass in this flag to actually do the dehydrate" };
             // Default: false (set via constructor)
 
-            var noStatusOpt = new Option<bool>("--no-status", "Do not require a clean git status when dehydrating.");
+            var noStatusOpt = new Option<bool>("--no-status") { Description = "Do not require a clean git status when dehydrating." };
             // Default: false (set via constructor)
 
-            var foldersOpt = new Option<string>("--folders", "A semicolon-delimited list of folders to dehydrate.");
+            var foldersOpt = new Option<string>("--folders") { Description = "A semicolon-delimited list of folders to dehydrate." };
             // Default: "" (set via constructor)
 
             var internalOpt = CreateInternalUseOnlyOption();
@@ -282,13 +282,13 @@ namespace GVFS
         {
             var enlistmentRootArg = CreateEnlistmentRootArgument();
 
-            var displayCountOpt = new Option<int>("-n", "Only display the <n> most hydrated directories in the output");
+            var displayCountOpt = new Option<int>("-n") { Description = "Only display the <n> most hydrated directories in the output" };
             // Default: 5 (set via constructor)
 
-            var directoryOpt = new Option<string>("--directory", "Get the health of a specific directory");
+            var directoryOpt = new Option<string>("--directory") { Description = "Get the health of a specific directory" };
             directoryOpt.Aliases.Add("-d");
 
-            var statusOpt = new Option<bool>("--status", "Display only the hydration % of the repository");
+            var statusOpt = new Option<bool>("--status") { Description = "Display only the hydration % of the repository" };
             statusOpt.Aliases.Add("-s");
             // Default: false (set via constructor)
 
@@ -320,13 +320,11 @@ namespace GVFS
         {
             var enlistmentRootArg = CreateEnlistmentRootArgument();
 
-            var verbosityOpt = new Option<string>("--verbosity",
-                "Sets the verbosity of console logging. Accepts: Verbose, Informational, Warning, Error");
+            var verbosityOpt = new Option<string>("--verbosity") { Description = "Sets the verbosity of console logging. Accepts: Verbose, Informational, Warning, Error" };
             verbosityOpt.Aliases.Add("-v");
             // Default: GVFSConstants.VerbParameters.Mount.DefaultVerbosity (set via constructor)
 
-            var keywordsOpt = new Option<string>("--keywords",
-                "A CSV list of logging filter keywords. Accepts: Any, Network");
+            var keywordsOpt = new Option<string>("--keywords") { Description = "A CSV list of logging filter keywords. Accepts: Any, Network" };
             keywordsOpt.Aliases.Add("-k");
             // Default: GVFSConstants.VerbParameters.Mount.DefaultKeywords (set via constructor)
 
@@ -356,32 +354,32 @@ namespace GVFS
         {
             var enlistmentRootArg = CreateEnlistmentRootArgument();
 
-            var filesOpt = new Option<string>("--files", "A semicolon-delimited list of files to fetch.");
+            var filesOpt = new Option<string>("--files") { Description = "A semicolon-delimited list of files to fetch." };
             // Default: "" (set via constructor)
 
-            var foldersOpt = new Option<string>("--folders", "A semicolon-delimited list of folders to fetch.");
+            var foldersOpt = new Option<string>("--folders") { Description = "A semicolon-delimited list of folders to fetch." };
             // Default: "" (set via constructor)
 
-            var foldersListOpt = new Option<string>("--folders-list", "A file containing line-delimited list of folders to fetch.");
+            var foldersListOpt = new Option<string>("--folders-list") { Description = "A file containing line-delimited list of folders to fetch." };
             // Default: "" (set via constructor)
 
-            var stdinFilesOpt = new Option<bool>("--stdin-files-list", "Load file list from stdin.");
+            var stdinFilesOpt = new Option<bool>("--stdin-files-list") { Description = "Load file list from stdin." };
             // Default: false (set via constructor)
 
-            var stdinFoldersOpt = new Option<bool>("--stdin-folders-list", "Load folder list from stdin.");
+            var stdinFoldersOpt = new Option<bool>("--stdin-folders-list") { Description = "Load folder list from stdin." };
             // Default: false (set via constructor)
 
-            var filesListOpt = new Option<string>("--files-list", "A file containing line-delimited list of files to fetch.");
+            var filesListOpt = new Option<string>("--files-list") { Description = "A file containing line-delimited list of files to fetch." };
             // Default: "" (set via constructor)
 
-            var hydrateOpt = new Option<bool>("--hydrate", "Also hydrate files in the working directory.");
+            var hydrateOpt = new Option<bool>("--hydrate") { Description = "Also hydrate files in the working directory." };
             // Default: false (set via constructor)
 
-            var commitsOpt = new Option<bool>("--commits", "Fetch the latest set of commit and tree packs.");
+            var commitsOpt = new Option<bool>("--commits") { Description = "Fetch the latest set of commit and tree packs." };
             commitsOpt.Aliases.Add("-c");
             // Default: false (set via constructor)
 
-            var verboseOpt = new Option<bool>("--verbose", "Show all outputs on the console.");
+            var verboseOpt = new Option<bool>("--verbose") { Description = "Show all outputs on the console." };
             // Default: false (set via constructor)
 
             var internalOpt = CreateInternalUseOnlyOption();
@@ -424,35 +422,31 @@ namespace GVFS
         {
             var enlistmentRootArg = CreateEnlistmentRootArgument();
 
-            var setOpt = new Option<string>("--set",
-                "A semicolon-delimited list of repo root relative folders to use as the sparse set.");
+            var setOpt = new Option<string>("--set") { Description = "A semicolon-delimited list of repo root relative folders to use as the sparse set." };
             setOpt.Aliases.Add("-s");
             // Default: "" (set via constructor)
 
-            var fileOpt = new Option<string>("--file",
-                "Path to a file with repo root relative folders to use as the sparse set.");
+            var fileOpt = new Option<string>("--file") { Description = "Path to a file with repo root relative folders to use as the sparse set." };
             fileOpt.Aliases.Add("-f");
             // Default: "" (set via constructor)
 
-            var addOpt = new Option<string>("--add",
-                "A semicolon-delimited list of repo root relative folders to include in the sparse set.");
+            var addOpt = new Option<string>("--add") { Description = "A semicolon-delimited list of repo root relative folders to include in the sparse set." };
             addOpt.Aliases.Add("-a");
             // Default: "" (set via constructor)
 
-            var removeOpt = new Option<string>("--remove",
-                "A semicolon-delimited list of repo root relative folders to remove from the sparse set.");
+            var removeOpt = new Option<string>("--remove") { Description = "A semicolon-delimited list of repo root relative folders to remove from the sparse set." };
             removeOpt.Aliases.Add("-r");
             // Default: "" (set via constructor)
 
-            var listOpt = new Option<bool>("--list", "List of folders in the sparse set.");
+            var listOpt = new Option<bool>("--list") { Description = "List of folders in the sparse set." };
             listOpt.Aliases.Add("-l");
             // Default: false (set via constructor)
 
-            var pruneOpt = new Option<bool>("--prune", "Remove any folders that are not in the list of sparse folders.");
+            var pruneOpt = new Option<bool>("--prune") { Description = "Remove any folders that are not in the list of sparse folders." };
             pruneOpt.Aliases.Add("-p");
             // Default: false (set via constructor)
 
-            var disableOpt = new Option<bool>("--disable", "Disable the sparse feature.");
+            var disableOpt = new Option<bool>("--disable") { Description = "Disable the sparse feature." };
             disableOpt.Aliases.Add("-d");
             // Default: false (set via constructor)
 
@@ -516,7 +510,7 @@ namespace GVFS
         private static Command BuildLogCommand()
         {
             var enlistmentRootArg = CreateEnlistmentRootArgument();
-            var typeOpt = new Option<string>("--type", "The type of log file to display on the console");
+            var typeOpt = new Option<string>("--type") { Description = "The type of log file to display on the console" };
             var internalOpt = CreateInternalUseOnlyOption();
 
             var cmd = new Command("log", "Show the most recent GVFS log files");
@@ -541,7 +535,7 @@ namespace GVFS
         {
             var enlistmentRootArg = CreateEnlistmentRootArgument();
 
-            var confirmOpt = new Option<bool>("--confirm", "Pass in this flag to actually do repair(s).");
+            var confirmOpt = new Option<bool>("--confirm") { Description = "Pass in this flag to actually do repair(s)." };
             // Default: false (set via constructor)
 
             var internalOpt = CreateInternalUseOnlyOption();
@@ -568,7 +562,7 @@ namespace GVFS
         {
             var enlistmentRootArg = CreateEnlistmentRootArgument();
 
-            var skipLockOpt = new Option<bool>("--skip-wait-for-lock", "Force unmount even if the lock is not available.");
+            var skipLockOpt = new Option<bool>("--skip-wait-for-lock") { Description = "Force unmount even if the lock is not available." };
             // Default: false (set via constructor)
 
             var internalOpt = CreateInternalUseOnlyOption();
@@ -605,11 +599,11 @@ namespace GVFS
             valueArg.Description = "Value of setting to be set";
             // Default: "" (set via constructor)
 
-            var listOpt = new Option<bool>("--list", "Show all settings");
+            var listOpt = new Option<bool>("--list") { Description = "Show all settings" };
             listOpt.Aliases.Add("-l");
             // Default: false (set via constructor)
 
-            var deleteOpt = new Option<string>("--delete", "Name of setting to delete");
+            var deleteOpt = new Option<string>("--delete") { Description = "Name of setting to delete" };
             deleteOpt.Aliases.Add("-d");
 
             var internalOpt = CreateInternalUseOnlyOption();
@@ -637,13 +631,13 @@ namespace GVFS
 
         private static Command BuildServiceCommand()
         {
-            var mountAllOpt = new Option<bool>("--mount-all", "Mounts all repos");
+            var mountAllOpt = new Option<bool>("--mount-all") { Description = "Mounts all repos" };
             // Default: false (set via constructor)
 
-            var unmountAllOpt = new Option<bool>("--unmount-all", "Unmounts all repos");
+            var unmountAllOpt = new Option<bool>("--unmount-all") { Description = "Unmounts all repos" };
             // Default: false (set via constructor)
 
-            var listMountedOpt = new Option<bool>("--list-mounted", "Prints a list of all mounted repos");
+            var listMountedOpt = new Option<bool>("--list-mounted") { Description = "Prints a list of all mounted repos" };
             // Default: false (set via constructor)
 
             var internalOpt = CreateInternalUseOnlyOption();
@@ -669,13 +663,13 @@ namespace GVFS
 
         private static Command BuildUpgradeCommand()
         {
-            var confirmOpt = new Option<bool>("--confirm", "Pass in this flag to actually install the newest release");
+            var confirmOpt = new Option<bool>("--confirm") { Description = "Pass in this flag to actually install the newest release" };
             // Default: false (set via constructor)
 
-            var dryRunOpt = new Option<bool>("--dry-run", "Display progress and errors, but don't install GVFS");
+            var dryRunOpt = new Option<bool>("--dry-run") { Description = "Display progress and errors, but don't install GVFS" };
             // Default: false (set via constructor)
 
-            var noVerifyOpt = new Option<bool>("--no-verify", "Do not verify NuGet packages after downloading them.");
+            var noVerifyOpt = new Option<bool>("--no-verify") { Description = "Do not verify NuGet packages after downloading them." };
             // Default: false (set via constructor)
 
             var internalOpt = CreateInternalUseOnlyOption();
