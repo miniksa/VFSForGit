@@ -34,46 +34,49 @@ pub enum GvfsHttpError {
 }
 
 /// Git credential manager authentication.
+/// Mirrors the C# GitAuthentication class: calls `git credential fill` with
+/// `GIT_TERMINAL_PROMPT=0` and `GCM_VALIDATE=0`, caches the credential in
+/// memory, and calls `git credential approve` after first successful use.
 #[derive(Debug, Clone)]
 pub struct GitAuth {
+    pub username: String,
     pub token: String,
 }
 
 impl GitAuth {
-    /// Get credentials from git credential manager.
-    /// This calls `git credential fill` which returns cached credentials without
-    /// prompting the user (GCM caches tokens from previous interactive logins).
-    /// Times out after 5 seconds to avoid blocking on interactive prompts.
-    pub fn from_credential_manager(url: &str) -> anyhow::Result<Self> {
-        let url_parsed = reqwest::Url::parse(url)?;
-        let host = url_parsed.host_str().unwrap_or("");
-        let protocol = url_parsed.scheme();
-        let path = url_parsed.path().trim_start_matches('/');
-
+    /// Get credentials by running `git credential fill` in the repo working dir.
+    /// Uses the same flags as C# GVFS:
+    /// - `-c credential."https://dev.azure.com".useHttpPath=true` for per-repo creds
+    /// - `GIT_TERMINAL_PROMPT=0` to suppress git's own stdin prompt
+    /// - `GCM_VALIDATE=0` to skip GCM's pre-validation HTTP call
+    /// GCM still returns cached tokens; it just won't open a browser since the
+    /// token was persisted during clone.
+    pub fn from_repo(working_dir: &std::path::Path, repo_url: &str) -> anyhow::Result<Self> {
         let mut child = std::process::Command::new("git")
-            .args(["credential", "fill"])
+            .args([
+                "-c", "credential.\"https://dev.azure.com\".useHttpPath=true",
+                "credential", "fill",
+            ])
+            .current_dir(working_dir)
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .env("GCM_VALIDATE", "0")
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::null())
             .spawn()?;
 
-        // Write the credential query to stdin and close it.
+        // Pass the full repo URL — GCM uses this to look up cached creds.
         if let Some(mut stdin) = child.stdin.take() {
-            // Include path so GCM can find the right credential.
-            write!(stdin, "protocol={}\nhost={}\npath={}\n\n", protocol, host, path)?;
+            write!(stdin, "url={}\n\n", repo_url)?;
         }
 
-        // Wait with a timeout — cached creds return in <100ms.
-        let timeout = std::time::Duration::from_secs(5);
+        // Timeout: cached creds return in <100ms. If it takes >10s, GCM is
+        // trying interactive auth which we don't want during mount.
+        let timeout = std::time::Duration::from_secs(10);
         let start = std::time::Instant::now();
         loop {
             match child.try_wait()? {
-                Some(status) => {
-                    if !status.success() {
-                        anyhow::bail!("git credential fill failed");
-                    }
-                    break;
-                }
+                Some(_) => break,
                 None => {
                     if start.elapsed() > timeout {
                         let _ = child.kill();
@@ -98,87 +101,71 @@ impl GitAuth {
         }
 
         if password.is_empty() {
-            anyhow::bail!("No credentials returned from git credential manager");
+            anyhow::bail!("No credentials returned from git credential fill");
         }
 
-        debug!("Got credentials for {}@{} (token length: {})", username, host, password.len());
-        Ok(Self { token: password })
+        debug!("Got credentials for {} (token length: {})", username, password.len());
+        Ok(Self { username, token: password })
     }
 
-    /// Get credentials from a git working directory's configured credential helper.
-    /// Sets GCM_INTERACTIVE=never so GCM only returns cached tokens and never
-    /// opens a browser or device-code dialog. This is safe because clone already
-    /// authenticated via GCM interactively, caching the token.
-    pub fn from_repo_credential_manager(working_dir: &std::path::Path, url: &str) -> anyhow::Result<Self> {
-        let url_parsed = reqwest::Url::parse(url)?;
-        let host = url_parsed.host_str().unwrap_or("");
-        let protocol = url_parsed.scheme();
-
-        let mut child = std::process::Command::new("git")
-            .args(["credential", "fill"])
+    /// Persist the credential in GCM's cache by calling `git credential approve`.
+    /// The C# version calls this after the first successful HTTP request.
+    pub fn approve(&self, working_dir: &std::path::Path, repo_url: &str) {
+        let _ = std::process::Command::new("git")
+            .args([
+                "-c", "credential.\"https://dev.azure.com\".useHttpPath=true",
+                "credential", "approve",
+            ])
             .current_dir(working_dir)
-            // Tell GCM: return cached creds only, never prompt interactively.
-            .env("GCM_INTERACTIVE", "never")
             .env("GIT_TERMINAL_PROMPT", "0")
             .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
-            .spawn()?;
-
-        if let Some(mut stdin) = child.stdin.take() {
-            // Query by host+protocol only (no path) — GCM caches by host.
-            write!(stdin, "protocol={}\nhost={}\n\n", protocol, host)?;
-        }
-
-        // Still use a timeout as a safety net.
-        let timeout = std::time::Duration::from_secs(5);
-        let start = std::time::Instant::now();
-        loop {
-            match child.try_wait()? {
-                Some(status) => {
-                    if !status.success() {
-                        anyhow::bail!("git credential fill exited with non-zero status");
-                    }
-                    break;
+            .spawn()
+            .and_then(|mut child| {
+                if let Some(mut stdin) = child.stdin.take() {
+                    let _ = write!(
+                        stdin,
+                        "url={}\nusername={}\npassword={}\n\n",
+                        repo_url, self.username, self.token
+                    );
                 }
-                None => {
-                    if start.elapsed() > timeout {
-                        let _ = child.kill();
-                        anyhow::bail!("git credential fill timed out");
-                    }
-                    std::thread::sleep(std::time::Duration::from_millis(50));
+                child.wait()
+            });
+    }
+
+    /// Reject a bad credential so GCM erases it.
+    pub fn reject(&self, working_dir: &std::path::Path, repo_url: &str) {
+        let _ = std::process::Command::new("git")
+            .args([
+                "-c", "credential.\"https://dev.azure.com\".useHttpPath=true",
+                "credential", "reject",
+            ])
+            .current_dir(working_dir)
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .and_then(|mut child| {
+                if let Some(mut stdin) = child.stdin.take() {
+                    let _ = write!(stdin, "url={}\n\n", repo_url);
                 }
-            }
-        }
-
-        let output = child.wait_with_output()?;
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let mut password = String::new();
-        for line in stdout.lines() {
-            if let Some(p) = line.strip_prefix("password=") {
-                password = p.to_string();
-            }
-        }
-
-        if password.is_empty() {
-            anyhow::bail!("No credentials returned from git credential manager");
-        }
-
-        Ok(Self { token: password })
+                child.wait()
+            });
     }
 
     /// Create auth from a PAT directly.
     pub fn from_pat(pat: &str) -> Self {
         Self {
+            username: String::new(),
             token: pat.to_string(),
         }
     }
 
-    /// Format as a git http.extraHeader value for passing to git commands.
-    /// This avoids git prompting for credentials during fetch/push.
-    pub fn as_extra_header(&self) -> String {
-        let encoded = base64_encode(&format!(":{}", self.token));
-        format!("Authorization: Basic {}", encoded)
+    /// Format as a Basic auth header value (Base64 of "username:password").
+    pub fn as_basic_auth(&self) -> String {
+        base64_encode(&format!("{}:{}", self.username, self.token))
     }
 }
 
@@ -215,10 +202,9 @@ impl GvfsClient {
     fn auth_headers(&self) -> HeaderMap {
         let mut headers = HeaderMap::new();
         if let Some(auth) = &self.auth {
-            let encoded = base64_encode(&format!(":{}", auth.token));
             headers.insert(
                 AUTHORIZATION,
-                HeaderValue::from_str(&format!("Basic {}", encoded)).unwrap(),
+                HeaderValue::from_str(&format!("Basic {}", auth.as_basic_auth())).unwrap(),
             );
         }
         headers.insert(

@@ -74,6 +74,8 @@ pub fn clone_repo(
     run_git(&src_dir, &["config", "core.protectNTFS", "false"])?;
     run_git(&src_dir, &["config", "gc.auto", "0"])?;
     run_git(&src_dir, &["config", "credential.validate", "false"])?;
+    // Per-host useHttpPath so GCM caches credentials scoped to the repo path.
+    run_git(&src_dir, &["config", "credential.https://dev.azure.com.useHttpPath", "true"])?;
 
     // Configure hook paths.
     run_git(&src_dir, &["config", "core.hookspath", ".git/hooks"])?;

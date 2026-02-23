@@ -420,7 +420,7 @@ fn cmd_prefetch(
         .as_deref()
         .ok_or_else(|| anyhow::anyhow!("No remote URL configured"))?;
 
-    let auth = GitAuth::from_credential_manager(remote_url).ok();
+    let auth = GitAuth::from_repo(&enlistment.working_dir(), remote_url).ok();
     let client = GvfsClient::new(remote_url, auth);
 
     let rt = tokio::runtime::Runtime::new()?;
@@ -466,7 +466,7 @@ fn cmd_cache_server(
         enl.resolve_remote_url()?;
 
         if let Some(url) = &enl.remote_url {
-            let auth = GitAuth::from_credential_manager(url).ok();
+            let auth = GitAuth::from_repo(&enl.working_dir(), url).ok();
             let client = GvfsClient::new(url, auth);
             let rt = tokio::runtime::Runtime::new()?;
             match rt.block_on(async { client.get_config().await }) {
