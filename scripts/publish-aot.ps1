@@ -98,20 +98,41 @@ if (-not $SkipBuild) {
     # Build native projects with MSBuild
     Write-Host ""
     Write-Host "  Building native hooks..." -NoNewline
-    $nativeSln = Join-Path $GVFSRoot "GVFS.sln"
 
-    foreach ($proj in $NativeProjects) {
-        $vcxproj = Get-ChildItem -Path $GVFSRoot -Recurse -Filter "$($proj.Name).vcxproj" | Select-Object -First 1
-        if ($vcxproj) {
-            msbuild $vcxproj.FullName /p:Configuration=$Configuration /p:Platform=x64 /v:minimal /nologo 2>&1 | Out-Null
-            # Copy native exe to layout
-            $nativeExe = Join-Path (Split-Path $RepoRoot) "out\$($proj.Name)\bin\x64\$Configuration\$($proj.Exe)"
-            if (Test-Path $nativeExe) {
-                Copy-Item $nativeExe $OutRoot -Force
+    # Find MSBuild
+    $msbuildExe = $null
+    # Try vswhere first
+    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+    if (Test-Path $vswhere) {
+        $vsPath = & $vswhere -latest -requires Microsoft.Component.MSBuild -property installationPath 2>$null
+        if ($vsPath) {
+            $msbuildExe = Join-Path $vsPath "MSBuild\Current\Bin\amd64\MSBuild.exe"
+            if (-not (Test-Path $msbuildExe)) {
+                $msbuildExe = Join-Path $vsPath "MSBuild\Current\Bin\MSBuild.exe"
             }
         }
     }
-    Write-Host " OK" -ForegroundColor Green
+    # Fallback: check PATH
+    if (-not $msbuildExe -or -not (Test-Path $msbuildExe)) {
+        $msbuildExe = Get-Command msbuild.exe -EA 0 | Select-Object -ExpandProperty Source
+    }
+
+    if ($msbuildExe -and (Test-Path $msbuildExe)) {
+        foreach ($proj in $NativeProjects) {
+            $vcxproj = Get-ChildItem -Path $GVFSRoot -Recurse -Filter "$($proj.Name).vcxproj" | Select-Object -First 1
+            if ($vcxproj) {
+                & $msbuildExe $vcxproj.FullName /p:Configuration=$Configuration /p:Platform=x64 /v:minimal /nologo 2>&1 | Out-Null
+                # Copy native exe to layout
+                $nativeExe = Join-Path (Split-Path $RepoRoot) "out\$($proj.Name)\bin\x64\$Configuration\$($proj.Exe)"
+                if (Test-Path $nativeExe) {
+                    Copy-Item $nativeExe $OutRoot -Force
+                }
+            }
+        }
+        Write-Host " OK" -ForegroundColor Green
+    } else {
+        Write-Host " SKIPPED (MSBuild not found — native hooks will use existing binaries)" -ForegroundColor Yellow
+    }
 } else {
     Write-Host "--- Step 1: Skipped (using existing build output) ---" -ForegroundColor DarkGray
 }
