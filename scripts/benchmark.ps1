@@ -179,7 +179,7 @@ $rustResult3 = $null
 if ($IncludeRust) {
     $rustResult3 = Measure-Operation -Name "Rust" -Iterations $Iterations `
         -Operation { & $rustGVFS mount "$cloneRoot\mount_rust" 2>&1 } `
-        -Cleanup { & $rustGVFS unmount "$cloneRoot\mount_rust" 2>&1; Start-Sleep 2 }
+        -Cleanup { & $rustGVFS unmount "$cloneRoot\mount_rust" --skip-wait-for-lock 2>&1; Get-Process gvfs-mount -EA 0 | Stop-Process -Force -EA 0; Start-Sleep 2 }
 }
 
 $allResults += [PSCustomObject]@{ Benchmark = "Mount (small repo)"; Prod = $r3_prod; Net10 = $r3_net10; Rust = $rustResult3 }
@@ -352,7 +352,7 @@ $rustResult10 = $null
 if ($IncludeRust) {
     $rustResult10 = Measure-Operation -Name "Rust" -Iterations $cloneIter `
         -Setup { & $rustGVFS mount "$cloneRoot\mount_rust" 2>&1; Start-Sleep 2 } `
-        -Operation { & $rustGVFS unmount "$cloneRoot\mount_rust" 2>&1 }
+        -Operation { & $rustGVFS unmount "$cloneRoot\mount_rust" --skip-wait-for-lock 2>&1; Get-Process gvfs-mount -EA 0 | Stop-Process -Force -EA 0 }
 }
 
 $allResults += [PSCustomObject]@{ Benchmark = "Unmount"; Prod = $r10_prod; Net10 = $r10_net10; Rust = $rustResult10 }

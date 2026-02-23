@@ -85,16 +85,12 @@ pub fn clone_repo(
 
     let branch_name = branch.unwrap_or("main");
 
-    // Fetch the branch. GCM handles authentication:
-    // - Prompts interactively on first use (browser/device code)
-    // - Returns cached token on subsequent uses
-    // git internally calls credential fill → use → approve, so the
-    // token is persisted in GCM automatically after successful fetch.
+    // Fetch the branch (full fetch, no shallow). GCM handles authentication.
     debug!("Fetching branch {} from {}", branch_name, remote_url);
     let fetch_ref = format!("{}:{}", branch_name, branch_name);
     run_git(
         &src_dir,
-        &["fetch", "origin", &fetch_ref, "--no-tags", "--depth=1"],
+        &["fetch", "origin", &fetch_ref, "--no-tags"],
     )?;
 
     // Point HEAD at the branch WITHOUT checking out files.

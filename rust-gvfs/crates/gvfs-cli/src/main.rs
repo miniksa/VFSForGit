@@ -70,6 +70,9 @@ enum Commands {
         /// Path to the enlistment root.
         #[arg(index = 1)]
         path: Option<String>,
+        /// Force unmount even if the lock is not available.
+        #[arg(long = "skip-wait-for-lock")]
+        skip_lock: bool,
     },
 
     /// Prefetch git objects.
@@ -199,7 +202,7 @@ fn main() {
             internal_config,
         } => cmd_mount(path.as_deref(), internal_config.as_deref()),
         Commands::Status { path } => cmd_status(path.as_deref()),
-        Commands::Unmount { path } => cmd_unmount(path.as_deref()),
+        Commands::Unmount { path, skip_lock: _ } => cmd_unmount(path.as_deref()),
         Commands::Prefetch {
             path,
             files,
@@ -244,7 +247,7 @@ fn main() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn cmd_version() -> anyhow::Result<()> {
-    println!("GVFS version {}", constants::GVFS_VERSION);
+    println!("GVFS {}", constants::GVFS_VERSION);
     Ok(())
 }
 
@@ -255,7 +258,11 @@ fn cmd_clone(
     no_mount: bool,
 ) -> anyhow::Result<()> {
     let target = PathBuf::from(path);
-    println!("Cloning {} into {:?}...", url, target);
+    println!("Clone parameters:");
+    println!("  Repo URL:     {}", url);
+    println!("  Branch:       {}", branch.unwrap_or("Default"));
+    println!("  Destination:  {}", target.display());
+    eprint!("Cloning...");
 
     // Create the enlistment structure.
     let mut enlistment = GvfsEnlistment::new(&target).with_remote(url.to_string());
@@ -279,10 +286,13 @@ fn cmd_clone(
     // Clone the repo (fetch + checkout).
     gvfs_common::git::clone_repo(url, &target, branch, no_mount)?;
 
-    println!("Clone complete.");
+    println!("Succeeded");
 
     // Mount unless --no-mount was specified.
-    if !no_mount {
+    if no_mount {
+        println!("In order to mount, first cd to within your enlistment, then call:");
+        println!("gvfs mount");
+    } else {
         println!("Mounting...");
         let exe = std::env::current_exe()?;
         let target_str = target.to_string_lossy().to_string();
@@ -307,7 +317,7 @@ fn cmd_mount(path: Option<&str>, _internal_config: Option<&str>) -> anyhow::Resu
 
     // Check if already mounted.
     if pipe::is_mounted(&root) {
-        println!("Already mounted at {:?}", root);
+        println!("The repo at '{}' is already mounted.", root.display());
         return Ok(());
     }
 
@@ -326,7 +336,7 @@ fn cmd_mount(path: Option<&str>, _internal_config: Option<&str>) -> anyhow::Resu
         );
     }
 
-    println!("Mounting {:?}...", root);
+    eprint!("Mounting...");
 
     // Launch as a detached background process.
     let root_str = root.to_string_lossy().to_string();
@@ -351,7 +361,7 @@ fn cmd_mount(path: Option<&str>, _internal_config: Option<&str>) -> anyhow::Resu
         match pipe::get_mount_status(&root) {
             Ok(status) => {
                 if status.contains("Ready") {
-                    println!("Mount successful.");
+                    println!("Succeeded");
                     // Register with service (best-effort).
                     let _ = register_with_service(&root);
                     return Ok(());
@@ -371,10 +381,11 @@ fn cmd_mount(path: Option<&str>, _internal_config: Option<&str>) -> anyhow::Resu
 
 fn cmd_status(path: Option<&str>) -> anyhow::Result<()> {
     let root = resolve_enlistment(path)?;
+    let enlistment = GvfsEnlistment::new(&root);
 
     match pipe::get_mount_status(&root) {
         Ok(status) => {
-            // Extract the body from the pipe response (format: "S|body")
+            // Extract body from pipe response (format: "S|body")
             if let Some(body) = status.strip_prefix("S|") {
                 println!("{}", body);
             } else {
@@ -382,7 +393,7 @@ fn cmd_status(path: Option<&str>) -> anyhow::Result<()> {
             }
         }
         Err(_) => {
-            println!("Not mounted: {:?}", root);
+            println!("Unable to connect to GVFS.  Try running 'gvfs mount'");
         }
     }
     Ok(())
@@ -391,13 +402,14 @@ fn cmd_status(path: Option<&str>) -> anyhow::Result<()> {
 fn cmd_unmount(path: Option<&str>) -> anyhow::Result<()> {
     let root = resolve_enlistment(path)?;
 
-    println!("Unmounting {:?}...", root);
+    eprint!("Unmounting...");
     match pipe::request_unmount(&root) {
-        Ok(response) => {
-            println!("Unmount: {}", response);
+        Ok(_) => {
+            println!("Succeeded");
         }
-        Err(e) => {
-            println!("Not mounted or unmount failed: {}", e);
+        Err(_) => {
+            println!("Failed");
+            println!("Unable to connect to GVFS.Mount");
         }
     }
     Ok(())
