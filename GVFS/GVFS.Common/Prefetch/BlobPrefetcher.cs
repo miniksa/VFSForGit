@@ -493,6 +493,11 @@ namespace GVFS.Common.Prefetch
 
         private static IEnumerable<string> GetFilesFromVerbParameter(string valueString)
         {
+            if (string.IsNullOrEmpty(valueString))
+            {
+                return Enumerable.Empty<string>();
+            }
+
             return valueString.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
         }
 
