@@ -321,11 +321,18 @@ impl PipeServer {
                 let mut wire = response.to_wire().into_bytes();
                 wire.push(ETX);
                 let _ = file.write_all(&wire);
+                let _ = file.flush(); // Ensure all bytes are sent before disconnect
 
                 // Prevent File from closing the handle.
                 std::mem::forget(file);
             }
 
+            // Flush pipe buffers to ensure client receives the full response
+            // before we disconnect. Without this, DisconnectNamedPipe can
+            // truncate the data on the client side.
+            unsafe {
+                windows::Win32::Storage::FileSystem::FlushFileBuffers(pipe_handle);
+            }
             let _ = unsafe { DisconnectNamedPipe(pipe_handle) };
             let _ = unsafe { windows::Win32::Foundation::CloseHandle(pipe_handle) };
         }
