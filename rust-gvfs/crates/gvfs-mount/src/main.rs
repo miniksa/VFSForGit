@@ -70,19 +70,18 @@ fn run_mount(root: &Path) -> anyhow::Result<()> {
         metadata.enlistment_id().unwrap_or("unknown")
     );
 
-    // Resolve remote URL and acquire credentials for the HTTP client.
-    // Uses the same approach as C# GVFS: calls `git credential fill` with
-    // GIT_TERMINAL_PROMPT=0 and GCM_VALIDATE=0. GCM returns cached tokens
-    // from the clone step without any UI.
+    // Resolve remote URL. Acquire cached credentials silently.
+    // Clone already called git credential approve, so GCM has the token stored.
+    // acquire_cached uses GIT_TERMINAL_PROMPT=0 — no interactive prompts.
     let mut enl = enlistment.clone();
     enl.resolve_remote_url()?;
 
     let http_client = enl.remote_url.as_ref().map(|url| {
-        let auth = GitAuth::from_repo(&enlistment.working_dir(), url).ok();
+        let auth = GitAuth::acquire_cached(&enlistment.working_dir(), url).ok();
         if let Some(ref a) = auth {
-            info!("Credentials acquired for {} (token cached)", a.username);
+            info!("Cached credentials acquired for {}", a.username);
         } else {
-            warn!("No credentials available — mount will proceed but file hydration may fail");
+            warn!("No cached credentials — file hydration from network will fail");
         }
         Arc::new(GvfsClient::new(url, auth))
     });

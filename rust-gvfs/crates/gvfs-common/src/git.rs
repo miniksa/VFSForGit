@@ -35,10 +35,12 @@ pub fn run_git_unchecked(working_dir: &Path, args: &[&str]) -> anyhow::Result<(i
 }
 
 /// Clone a repository with GVFS protocol support.
-/// Clone uses `git fetch` which delegates to Git Credential Manager for auth.
-/// GCM will use cached tokens if available, or prompt interactively on first use.
-/// Once cloned, the mount daemon uses `git credential fill` to get cached creds
-/// for HTTP downloads without additional prompts.
+/// Clone a repository with GVFS protocol support.
+/// git fetch handles authentication natively through GCM:
+/// - First clone: GCM prompts interactively (browser/device code), caches token
+/// - Subsequent clones: GCM returns cached token, no prompt
+/// git internally calls credential fill/approve, so the token is persisted
+/// automatically. Mount can then retrieve it silently.
 pub fn clone_repo(
     remote_url: &str,
     target_dir: &Path,
@@ -49,8 +51,9 @@ pub fn clone_repo(
     std::fs::create_dir_all(&src_dir)?;
 
     // Initialize the git repo.
-    let args = vec!["init", src_dir.to_str().unwrap()];
-    let output = Command::new("git").args(&args).output()?;
+    let output = Command::new("git")
+        .args(["init", src_dir.to_str().unwrap()])
+        .output()?;
     if !output.status.success() {
         anyhow::bail!(
             "git init failed: {}",
@@ -61,8 +64,8 @@ pub fn clone_repo(
     // Set the remote.
     run_git(&src_dir, &["remote", "add", "origin", remote_url])?;
 
-    // Configure GVFS settings.
-    run_git(&src_dir, &["config", "core.gvfs", "7"])?; // Standard GVFS flags
+    // Configure GVFS settings (same as C# TrySetRequiredGitConfigSettings).
+    run_git(&src_dir, &["config", "core.gvfs", "7"])?;
     run_git(&src_dir, &["config", "core.bare", "false"])?;
     run_git(&src_dir, &["config", "core.sparseCheckout", "true"])?;
     run_git(&src_dir, &["config", "core.sparseCheckoutCone", "false"])?;
@@ -74,21 +77,19 @@ pub fn clone_repo(
     run_git(&src_dir, &["config", "core.protectNTFS", "false"])?;
     run_git(&src_dir, &["config", "gc.auto", "0"])?;
     run_git(&src_dir, &["config", "credential.validate", "false"])?;
-    // Per-host useHttpPath so GCM caches credentials scoped to the repo path.
     run_git(&src_dir, &["config", "credential.https://dev.azure.com.useHttpPath", "true"])?;
 
     // Configure hook paths.
     run_git(&src_dir, &["config", "core.hookspath", ".git/hooks"])?;
-
-    // Set the GVFS read-object hook.
     configure_git_hooks(&src_dir)?;
 
-    // Set branch if specified.
     let branch_name = branch.unwrap_or("main");
 
-    // Fetch the branch. Git Credential Manager handles authentication.
-    // On first clone, GCM may prompt interactively (browser/device code).
-    // On subsequent clones, GCM uses cached tokens — no prompt.
+    // Fetch the branch. GCM handles authentication:
+    // - Prompts interactively on first use (browser/device code)
+    // - Returns cached token on subsequent uses
+    // git internally calls credential fill → use → approve, so the
+    // token is persisted in GCM automatically after successful fetch.
     debug!("Fetching branch {} from {}", branch_name, remote_url);
     let fetch_ref = format!("{}:{}", branch_name, branch_name);
     run_git(
@@ -96,13 +97,11 @@ pub fn clone_repo(
         &["fetch", "origin", &fetch_ref, "--no-tags", "--depth=1"],
     )?;
 
-    // Point HEAD at the branch WITHOUT checking out files into the working tree.
-    // ProjFS requires the working directory to be clean (no real files) so it can
-    // project them virtually via callbacks.
+    // Point HEAD at the branch WITHOUT checking out files.
+    // ProjFS requires the working directory to be empty so it can project virtually.
     run_git(&src_dir, &["symbolic-ref", "HEAD", &format!("refs/heads/{}", branch_name)])?;
 
-    // Populate the git index from HEAD so the projection knows what to serve.
-    // read-tree writes to the index only — no working tree files are created.
+    // Populate the git index from HEAD (no working tree files created).
     run_git(&src_dir, &["read-tree", "HEAD"])?;
 
     debug!("Clone completed to {:?}", target_dir);

@@ -44,34 +44,57 @@ pub struct GitAuth {
 }
 
 impl GitAuth {
-    /// Get credentials by running `git credential fill` in the repo working dir.
-    /// Uses the same flags as C# GVFS:
-    /// - `-c credential."https://dev.azure.com".useHttpPath=true` for per-repo creds
-    /// - `GIT_TERMINAL_PROMPT=0` to suppress git's own stdin prompt
-    /// - `GCM_VALIDATE=0` to skip GCM's pre-validation HTTP call
-    /// GCM still returns cached tokens; it just won't open a browser since the
-    /// token was persisted during clone.
-    pub fn from_repo(working_dir: &std::path::Path, repo_url: &str) -> anyhow::Result<Self> {
+    /// Acquire credentials interactively during clone.
+    /// Does NOT set GIT_TERMINAL_PROMPT=0 — allows GCM to open browser/device code.
+    /// The C# CloneVerb calls this, then uses the token for HTTP, then calls approve().
+    pub fn acquire_interactive(working_dir: &std::path::Path, repo_url: &str) -> anyhow::Result<Self> {
         let mut child = std::process::Command::new("git")
             .args([
                 "-c", "credential.\"https://dev.azure.com\".useHttpPath=true",
                 "credential", "fill",
             ])
             .current_dir(working_dir)
-            .env("GIT_TERMINAL_PROMPT", "0")
+            // GCM_VALIDATE=0 skips the extra HTTP roundtrip but still allows interactive UI
             .env("GCM_VALIDATE", "0")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::inherit()) // let GCM print to stderr if needed
+            .spawn()?;
+
+        if let Some(mut stdin) = child.stdin.take() {
+            write!(stdin, "url={}\n\n", repo_url)?;
+        }
+
+        // No timeout — user may need to authenticate in browser
+        let output = child.wait_with_output()?;
+        Self::parse_credential_output(&output.stdout)
+    }
+
+    /// Acquire cached credentials silently during mount.
+    /// Sets GIT_TERMINAL_PROMPT=0 to suppress git's stdin prompt, and
+    /// GCM_INTERACTIVE=never to prevent GCM from opening any UI (browser,
+    /// device code dialog, etc). GCM returns the token that git fetch
+    /// persisted automatically during clone.
+    pub fn acquire_cached(working_dir: &std::path::Path, repo_url: &str) -> anyhow::Result<Self> {
+        let mut child = std::process::Command::new("git")
+            .args([
+                "-c", "credential.\"https://dev.azure.com\".useHttpPath=true",
+                "credential", "fill",
+            ])
+            .current_dir(working_dir)
+            .env("GIT_TERMINAL_PROMPT", "0")  // suppress git stdin prompt
+            .env("GCM_VALIDATE", "0")         // skip validation roundtrip
+            .env("GCM_INTERACTIVE", "never")  // block ALL GCM UI (browser, dialog)
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::null())
             .spawn()?;
 
-        // Pass the full repo URL — GCM uses this to look up cached creds.
         if let Some(mut stdin) = child.stdin.take() {
             write!(stdin, "url={}\n\n", repo_url)?;
         }
 
-        // Timeout: cached creds return in <100ms. If it takes >10s, GCM is
-        // trying interactive auth which we don't want during mount.
+        // Timeout: cached creds return in <1s. If it blocks, creds aren't stored.
         let timeout = std::time::Duration::from_secs(10);
         let start = std::time::Instant::now();
         loop {
@@ -80,7 +103,7 @@ impl GitAuth {
                 None => {
                     if start.elapsed() > timeout {
                         let _ = child.kill();
-                        anyhow::bail!("git credential fill timed out");
+                        anyhow::bail!("git credential fill timed out — credentials not cached from clone");
                     }
                     std::thread::sleep(std::time::Duration::from_millis(50));
                 }
@@ -88,10 +111,14 @@ impl GitAuth {
         }
 
         let output = child.wait_with_output()?;
-        let stdout = String::from_utf8_lossy(&output.stdout);
+        Self::parse_credential_output(&output.stdout)
+    }
+
+    fn parse_credential_output(stdout: &[u8]) -> anyhow::Result<Self> {
+        let stdout_str = String::from_utf8_lossy(stdout);
         let mut password = String::new();
         let mut username = String::new();
-        for line in stdout.lines() {
+        for line in stdout_str.lines() {
             if let Some(p) = line.strip_prefix("password=") {
                 password = p.to_string();
             }
@@ -99,11 +126,9 @@ impl GitAuth {
                 username = u.to_string();
             }
         }
-
         if password.is_empty() {
             anyhow::bail!("No credentials returned from git credential fill");
         }
-
         debug!("Got credentials for {} (token length: {})", username, password.len());
         Ok(Self { username, token: password })
     }
