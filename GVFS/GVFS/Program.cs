@@ -169,12 +169,12 @@ namespace GVFS
                 ApplyCommonOptions(verb, parseResult.GetValue(internalOpt));
                 verb.RepositoryURL = parseResult.GetValue(repoUrlArg);
                 verb.EnlistmentRootPathParameter = parseResult.GetValue(enlistmentRootArg);
-                verb.CacheServerUrl = parseResult.GetValue(cacheServerUrlOpt);
-                verb.Branch = parseResult.GetValue(branchOpt);
+                verb.CacheServerUrl = parseResult.GetValue(cacheServerUrlOpt) ?? verb.CacheServerUrl;
+                verb.Branch = parseResult.GetValue(branchOpt) ?? verb.Branch;
                 verb.SingleBranch = parseResult.GetValue(singleBranchOpt);
                 verb.NoMount = parseResult.GetValue(noMountOpt);
                 verb.NoPrefetch = parseResult.GetValue(noPrefetchOpt);
-                verb.LocalCacheRoot = parseResult.GetValue(localCachePathOpt);
+                verb.LocalCacheRoot = parseResult.GetValue(localCachePathOpt) ?? verb.LocalCacheRoot;
                 // Clone gets special handling: do NOT default EnlistmentRootPathParameter to cwd
                 ExecuteVerb(verb);
             });
@@ -308,7 +308,8 @@ namespace GVFS
                 var verb = new HealthVerb();
                 ApplyCommonOptions(verb, parseResult.GetValue(internalOpt));
                 verb.EnlistmentRootPathParameter = parseResult.GetValue(enlistmentRootArg);
-                verb.DirectoryDisplayCount = parseResult.GetValue(displayCountOpt);
+                var displayCount = parseResult.GetValue(displayCountOpt);
+                if (displayCount > 0) verb.DirectoryDisplayCount = displayCount;
                 verb.Directory = parseResult.GetValue(directoryOpt);
                 verb.StatusOnly = parseResult.GetValue(statusOpt);
                 ApplyEnlistmentRootDefault(verb);
@@ -343,8 +344,8 @@ namespace GVFS
                 var verb = new MountVerb();
                 ApplyCommonOptions(verb, parseResult.GetValue(internalOpt));
                 verb.EnlistmentRootPathParameter = parseResult.GetValue(enlistmentRootArg);
-                verb.Verbosity = parseResult.GetValue(verbosityOpt);
-                verb.KeywordsCsv = parseResult.GetValue(keywordsOpt);
+                verb.Verbosity = parseResult.GetValue(verbosityOpt) ?? verb.Verbosity;
+                verb.KeywordsCsv = parseResult.GetValue(keywordsOpt) ?? verb.KeywordsCsv;
                 ApplyEnlistmentRootDefault(verb);
                 ExecuteVerb(verb);
             });
