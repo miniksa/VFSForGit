@@ -37,7 +37,9 @@ param(
 
     [string]$AotZipOrDir = "",
 
-    [string]$GvfsInstallDir = "C:\Program Files\GVFS"
+    [string]$GvfsInstallDir = "C:\Program Files\GVFS",
+
+    [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
@@ -166,10 +168,14 @@ if ($Mode -eq "switch") {
 
     # Check if already switched
     if (Test-Path $BackupDir) {
-        Write-Host "WARNING: Backup directory already exists at $BackupDir" -ForegroundColor Yellow
-        Write-Host "  It looks like you've already switched. Run with -Mode restore first."
-        Write-Host "  Or delete $BackupDir manually if you're sure."
-        exit 1
+        if ($Force) {
+            Write-Host "WARNING: Backup exists, -Force specified, removing old backup." -ForegroundColor Yellow
+            Remove-Item $BackupDir -Recurse -Force
+        } else {
+            Write-Host "WARNING: Backup directory already exists at $BackupDir" -ForegroundColor Yellow
+            Write-Host "  It looks like you've already switched. Use -Force to overwrite, or -Mode restore first."
+            exit 1
+        }
     }
 
     # Step 1: Discover mounted repos
@@ -187,14 +193,21 @@ if ($Mode -eq "switch") {
     Write-Host "--- Step 2: Unmounting repos ---" -ForegroundColor Yellow
     foreach ($repo in $repos) {
         Write-Host "  Unmounting $repo..." -NoNewline
-        & "$GvfsInstallDir\GVFS.exe" unmount $repo --skip-wait-for-lock 2>&1 | Out-Null
-        Write-Host " OK" -ForegroundColor Green
+        try {
+            & "$GvfsInstallDir\GVFS.exe" unmount $repo --skip-wait-for-lock 2>&1 | Out-Null
+            Write-Host " OK" -ForegroundColor Green
+        } catch {
+            Write-Host " skipped (GVFS may have crashed)" -ForegroundColor Yellow
+        }
     }
 
-    # Step 3: Stop GVFS service
+    # Step 3: Stop GVFS service and kill all GVFS processes
     Write-Host ""
     Write-Host "--- Step 3: Stopping GVFS service ---" -ForegroundColor Yellow
     Stop-GvfsService
+    # Kill anything that might still be holding file locks
+    Get-Process GVFS, GVFS.Mount, GVFS.Service, GVFS.Service.UI -EA 0 | Stop-Process -Force -EA 0
+    Start-Sleep 2
 
     # Step 4: Backup production binaries
     Write-Host ""
