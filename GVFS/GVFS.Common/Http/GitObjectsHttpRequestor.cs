@@ -344,8 +344,8 @@ namespace GVFS.Common.Http
 
         public class GitObjectSize
         {
-            public readonly string Id;
-            public readonly long Size;
+            public string Id { get; set; }
+            public long Size { get; set; }
 
             [JsonConstructor]
             public GitObjectSize(string id, long size)
