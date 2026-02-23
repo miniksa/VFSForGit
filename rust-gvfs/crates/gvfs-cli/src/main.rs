@@ -338,7 +338,7 @@ fn cmd_mount(path: Option<&str>, _internal_config: Option<&str>) -> anyhow::Resu
         .spawn()?;
 
     // Wait for mount to become ready (poll the named pipe).
-    let max_wait = std::time::Duration::from_secs(30);
+    let max_wait = std::time::Duration::from_secs(60);
     let start = std::time::Instant::now();
 
     loop {
@@ -356,7 +356,10 @@ fn cmd_mount(path: Option<&str>, _internal_config: Option<&str>) -> anyhow::Resu
                     let _ = register_with_service(&root);
                     return Ok(());
                 }
-                debug!("Mount status: {}", status);
+                // Show progress dots every 2 seconds
+                if start.elapsed().as_secs() % 2 == 0 {
+                    eprint!(".");
+                }
             }
             Err(_) => {
                 // Not ready yet.
@@ -371,7 +374,12 @@ fn cmd_status(path: Option<&str>) -> anyhow::Result<()> {
 
     match pipe::get_mount_status(&root) {
         Ok(status) => {
-            println!("{}", status);
+            // Extract the body from the pipe response (format: "S|body")
+            if let Some(body) = status.strip_prefix("S|") {
+                println!("{}", body);
+            } else {
+                println!("{}", status);
+            }
         }
         Err(_) => {
             println!("Not mounted: {:?}", root);

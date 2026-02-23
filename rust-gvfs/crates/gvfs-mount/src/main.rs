@@ -70,17 +70,24 @@ fn run_mount(root: &Path) -> anyhow::Result<()> {
         metadata.enlistment_id().unwrap_or("unknown")
     );
 
-    // Resolve remote URL for HTTP client.
+    // Resolve remote URL and pre-acquire credentials for the HTTP client.
+    // We acquire credentials once here at mount startup so that file hydration
+    // never triggers interactive credential prompts.
     let mut enl = enlistment.clone();
     enl.resolve_remote_url()?;
 
-    let http_client = if let Some(url) = &enl.remote_url {
-        let auth = GitAuth::from_credential_manager(url).ok();
-        Some(Arc::new(GvfsClient::new(url, auth)))
-    } else {
-        warn!("No remote URL found — file hydration will only work from local objects");
-        None
-    };
+    let http_client = enl.remote_url.as_ref().map(|url| {
+        // Try to acquire CACHED credentials (GCM_INTERACTIVE=never prevents prompts).
+        // Clone already authenticated interactively, so GCM should have the token cached.
+        let auth = GitAuth::from_repo_credential_manager(&enlistment.working_dir(), url)
+            .ok();
+        if auth.is_some() {
+            info!("Credentials acquired for HTTP client");
+        } else {
+            warn!("No cached credentials available — file hydration will use git cat-file");
+        }
+        Arc::new(GvfsClient::new(url, auth))
+    });
 
     // Create the virtualizer.
     let virtualizer = Arc::new(GvfsVirtualizer::new(enlistment.clone(), http_client)?);
@@ -88,18 +95,23 @@ fn run_mount(root: &Path) -> anyhow::Result<()> {
     // Load the git index projection.
     virtualizer.load_projection()?;
 
-    // Mark the src directory as a ProjFS placeholder root.
+    // Set up the ProjFS virtualization root on the working directory (src/).
     let working_dir = enlistment.working_dir();
-    let instance_id = windows_core::GUID::from_u128(
-        uuid::Uuid::new_v4().as_u128(),
-    );
 
-    // Ensure the virtualization root is marked.
-    if let Err(e) =
-        projfs::mark_directory_as_placeholder(&working_dir, "", &instance_id)
-    {
-        // This can fail if it's already a placeholder — that's okay.
-        debug!("Mark directory result (may be expected): {:?}", e);
+    // Generate a stable virtualization instance GUID from the enlistment ID.
+    let enlistment_id_str = metadata.enlistment_id().unwrap_or("00000000-0000-0000-0000-000000000000");
+    let instance_uuid = uuid::Uuid::new_v5(
+        &uuid::Uuid::NAMESPACE_URL,
+        enlistment_id_str.as_bytes(),
+    );
+    let instance_id = windows_core::GUID::from_u128(instance_uuid.as_u128());
+
+    // Mark the working directory as a ProjFS virtualization root.
+    // This sets a reparse point that ProjFS recognizes.
+    // It may fail if already marked (e.g., re-mount) — that's OK.
+    match projfs::mark_directory_as_placeholder(&working_dir, "", &instance_id) {
+        Ok(()) => info!("Marked {:?} as ProjFS virtualization root", working_dir),
+        Err(e) => info!("mark_directory_as_placeholder result: {:?} (may already be marked)", e),
     }
 
     // Start ProjFS.
@@ -153,14 +165,16 @@ fn handle_pipe_message(state: &MountState, msg: PipeMessage) -> PipeMessage {
     match msg.header.as_str() {
         "GetStatus" => {
             let status = state.status.read().clone();
-            let response = serde_json::json!({
-                "MountStatus": status,
-                "EnlistmentRoot": state.enlistment.root.to_string_lossy(),
-                "Version": constants::GVFS_VERSION,
-                "Locked": state.lock.is_locked(),
-                "LockedCommand": state.lock.get_locked_command().unwrap_or_default(),
-            });
-            PipeMessage::new("S", Some(response.to_string()))
+            // The CLI mount command polls for "Ready" in the response text.
+            let response = format!(
+                "Mount status: {}\nEnlistment root: {}\nVersion: {}\nLocked: {}\nLocked command: {}",
+                status,
+                state.enlistment.root.to_string_lossy(),
+                constants::GVFS_VERSION,
+                state.lock.is_locked(),
+                state.lock.get_locked_command().unwrap_or_default(),
+            );
+            PipeMessage::new("S", Some(response))
         }
 
         "Unmount" => {

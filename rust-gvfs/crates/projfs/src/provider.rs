@@ -259,13 +259,25 @@ pub fn mark_directory_as_placeholder(
 ) -> Result<(), ProjFsError> {
     let root_wide = U16CString::from_os_str(root_path.as_os_str())
         .map_err(|e| ProjFsError::StringConversion(e.to_string()))?;
-    let target_wide = U16CString::from_str(target_path)
-        .map_err(|e| ProjFsError::StringConversion(e.to_string()))?;
+
+    // When target_path is empty, pass NULL to mark the root directory itself.
+    // ProjFS distinguishes NULL (mark root) from empty string (invalid).
+    let target_pcwstr = if target_path.is_empty() {
+        PCWSTR::null()
+    } else {
+        let w = U16CString::from_str(target_path)
+            .map_err(|e| ProjFsError::StringConversion(e.to_string()))?;
+        // SAFETY: we need the wide string to live through the FFI call.
+        // We'll leak it since this is a one-time setup call.
+        let ptr = w.as_ptr();
+        std::mem::forget(w);
+        PCWSTR(ptr)
+    };
 
     let hr = unsafe {
         PrjMarkDirectoryAsPlaceholder(
             PCWSTR(root_wide.as_ptr()),
-            PCWSTR(target_wide.as_ptr()),
+            target_pcwstr,
             std::ptr::null(),
             instance_id as *const GUID,
         )

@@ -41,29 +41,122 @@ pub struct GitAuth {
 
 impl GitAuth {
     /// Get credentials from git credential manager.
+    /// This calls `git credential fill` which returns cached credentials without
+    /// prompting the user (GCM caches tokens from previous interactive logins).
+    /// Times out after 5 seconds to avoid blocking on interactive prompts.
     pub fn from_credential_manager(url: &str) -> anyhow::Result<Self> {
-        let output = std::process::Command::new("git")
+        let url_parsed = reqwest::Url::parse(url)?;
+        let host = url_parsed.host_str().unwrap_or("");
+        let protocol = url_parsed.scheme();
+        let path = url_parsed.path().trim_start_matches('/');
+
+        let mut child = std::process::Command::new("git")
             .args(["credential", "fill"])
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::null())
-            .spawn()
-            .and_then(|mut child| {
-                if let Some(stdin) = child.stdin.as_mut() {
-                    let url_parsed = reqwest::Url::parse(url).unwrap();
-                    let host = url_parsed.host_str().unwrap_or("");
-                    let protocol = url_parsed.scheme();
-                    write!(stdin, "protocol={}\nhost={}\n\n", protocol, host)?;
-                }
-                child.wait_with_output()
-            })?;
+            .spawn()?;
 
+        // Write the credential query to stdin and close it.
+        if let Some(mut stdin) = child.stdin.take() {
+            // Include path so GCM can find the right credential.
+            write!(stdin, "protocol={}\nhost={}\npath={}\n\n", protocol, host, path)?;
+        }
+
+        // Wait with a timeout — cached creds return in <100ms.
+        let timeout = std::time::Duration::from_secs(5);
+        let start = std::time::Instant::now();
+        loop {
+            match child.try_wait()? {
+                Some(status) => {
+                    if !status.success() {
+                        anyhow::bail!("git credential fill failed");
+                    }
+                    break;
+                }
+                None => {
+                    if start.elapsed() > timeout {
+                        let _ = child.kill();
+                        anyhow::bail!("git credential fill timed out");
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                }
+            }
+        }
+
+        let output = child.wait_with_output()?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let mut password = String::new();
+        let mut username = String::new();
+        for line in stdout.lines() {
+            if let Some(p) = line.strip_prefix("password=") {
+                password = p.to_string();
+            }
+            if let Some(u) = line.strip_prefix("username=") {
+                username = u.to_string();
+            }
+        }
+
+        if password.is_empty() {
+            anyhow::bail!("No credentials returned from git credential manager");
+        }
+
+        debug!("Got credentials for {}@{} (token length: {})", username, host, password.len());
+        Ok(Self { token: password })
+    }
+
+    /// Get credentials from a git working directory's configured credential helper.
+    /// Sets GCM_INTERACTIVE=never so GCM only returns cached tokens and never
+    /// opens a browser or device-code dialog. This is safe because clone already
+    /// authenticated via GCM interactively, caching the token.
+    pub fn from_repo_credential_manager(working_dir: &std::path::Path, url: &str) -> anyhow::Result<Self> {
+        let url_parsed = reqwest::Url::parse(url)?;
+        let host = url_parsed.host_str().unwrap_or("");
+        let protocol = url_parsed.scheme();
+
+        let mut child = std::process::Command::new("git")
+            .args(["credential", "fill"])
+            .current_dir(working_dir)
+            // Tell GCM: return cached creds only, never prompt interactively.
+            .env("GCM_INTERACTIVE", "never")
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn()?;
+
+        if let Some(mut stdin) = child.stdin.take() {
+            // Query by host+protocol only (no path) — GCM caches by host.
+            write!(stdin, "protocol={}\nhost={}\n\n", protocol, host)?;
+        }
+
+        // Still use a timeout as a safety net.
+        let timeout = std::time::Duration::from_secs(5);
+        let start = std::time::Instant::now();
+        loop {
+            match child.try_wait()? {
+                Some(status) => {
+                    if !status.success() {
+                        anyhow::bail!("git credential fill exited with non-zero status");
+                    }
+                    break;
+                }
+                None => {
+                    if start.elapsed() > timeout {
+                        let _ = child.kill();
+                        anyhow::bail!("git credential fill timed out");
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                }
+            }
+        }
+
+        let output = child.wait_with_output()?;
         let stdout = String::from_utf8_lossy(&output.stdout);
         let mut password = String::new();
         for line in stdout.lines() {
             if let Some(p) = line.strip_prefix("password=") {
                 password = p.to_string();
-                break;
             }
         }
 
@@ -79,6 +172,13 @@ impl GitAuth {
         Self {
             token: pat.to_string(),
         }
+    }
+
+    /// Format as a git http.extraHeader value for passing to git commands.
+    /// This avoids git prompting for credentials during fetch/push.
+    pub fn as_extra_header(&self) -> String {
+        let encoded = base64_encode(&format!(":{}", self.token));
+        format!("Authorization: Basic {}", encoded)
     }
 }
 
@@ -374,7 +474,8 @@ fn parse_prefetch_response(data: &[u8], output_dir: &Path) -> Result<Vec<PathBuf
     Ok(paths)
 }
 
-fn base64_encode(input: &str) -> String {
+/// Simple base64 encoding (public for use by GitAuth).
+pub fn base64_encode(input: &str) -> String {
     
     // Simple base64 encoding
     const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";

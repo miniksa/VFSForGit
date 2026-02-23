@@ -27,7 +27,8 @@ param(
     [string]$TestBranch = "FunctionalTests/20201014",
     [string]$LargeRepo = "D:\os",
     [string]$OutputFile = "D:\src\VFSForGit\benchmark-results-$(Get-Date -Format 'yyyyMMdd-HHmmss').md",
-    [switch]$UsePublished
+    [switch]$UsePublished,
+    [switch]$IncludeRust
 )
 
 $ErrorActionPreference = "Continue"
@@ -41,18 +42,26 @@ if ($UsePublished) {
     $net10GVFS = "D:\src\out\GVFS\bin\Release\net10.0-windows10.0.17763.0\win-x64\GVFS.exe"
     $net10Label = ".NET 10 (JIT only)"
 }
+$rustGVFS = "D:\src\VFSForGit\rust-gvfs\target\release\gvfs.exe"
 $git = "C:\Program Files\Git\cmd\git.exe"
 $cloneRoot = "C:\Repos\GVFSBenchmark"
 
-# Verify both builds exist
+# Verify builds exist
 if (-not (Test-Path $prodGVFS)) { throw "Production GVFS not found at $prodGVFS" }
-if (-not (Test-Path $net10GVFS)) { throw ".NET 10 GVFS not found at $net10GVFS" }
+if (-not (Test-Path $net10GVFS)) { Write-Warning ".NET 10 GVFS not found at $net10GVFS — will skip .NET 10 benchmarks" }
+if ($IncludeRust -and -not (Test-Path $rustGVFS)) { throw "Rust GVFS not found at $rustGVFS — run: cd rust-gvfs && cargo build --release" }
 
 Write-Host "=== VFSForGit Performance Benchmark ===" -ForegroundColor Cyan
 Write-Host "Production: $prodGVFS"
 Write-Host "  Version:  $(& $prodGVFS version 2>&1)"
-Write-Host ".NET 10:    $net10GVFS"
-Write-Host "  Version:  $(& $net10GVFS version 2>&1)"
+if (Test-Path $net10GVFS) {
+    Write-Host ".NET 10:    $net10GVFS"
+    Write-Host "  Version:  $(& $net10GVFS version 2>&1)"
+}
+if ($IncludeRust) {
+    Write-Host "Rust:       $rustGVFS"
+    Write-Host "  Version:  $(& $rustGVFS version 2>&1)"
+}
 Write-Host "Iterations: $Iterations"
 Write-Host "Test Repo:  $TestRepo"
 Write-Host "Large Repo: $LargeRepo"
@@ -107,7 +116,14 @@ $r1_net10 = Measure-Operation -Name ".NET 10" -Iterations $Iterations -Operation
     & $net10GVFS version 2>&1
 }
 
-$allResults += [PSCustomObject]@{ Benchmark = "Startup (gvfs version)"; Prod = $r1_prod; Net10 = $r1_net10 }
+$rustResult1 = $null
+if ($IncludeRust) {
+    $rustResult1 = Measure-Operation -Name "Rust" -Iterations $Iterations -Operation {
+        & $rustGVFS version 2>&1
+    }
+}
+
+$allResults += [PSCustomObject]@{ Benchmark = "Startup (gvfs version)"; Prod = $r1_prod; Net10 = $r1_net10; Rust = $rustResult1 }
 
 # ============================================================
 # Benchmark 2: Clone (small test repo)
@@ -126,7 +142,15 @@ $r2_net10 = Measure-Operation -Name ".NET 10" -Iterations $cloneIter `
     -Operation { & $net10GVFS clone $TestRepo "$cloneRoot\net10" --branch $TestBranch --no-mount 2>&1 } `
     -Cleanup { & $net10GVFS unmount "$cloneRoot\net10" --skip-wait-for-lock 2>&1; Start-Sleep 2; Remove-Item "$cloneRoot\net10" -Recurse -Force -EA 0 }
 
-$allResults += [PSCustomObject]@{ Benchmark = "Clone (small repo, no mount)"; Prod = $r2_prod; Net10 = $r2_net10 }
+$rustResult2 = $null
+if ($IncludeRust) {
+    $rustResult2 = Measure-Operation -Name "Rust" -Iterations $cloneIter `
+        -Setup { Remove-Item "$cloneRoot\rust" -Recurse -Force -EA 0 } `
+        -Operation { & $rustGVFS clone $TestRepo "$cloneRoot\rust" --branch $TestBranch --no-mount 2>&1 } `
+        -Cleanup { Remove-Item "$cloneRoot\rust" -Recurse -Force -EA 0 }
+}
+
+$allResults += [PSCustomObject]@{ Benchmark = "Clone (small repo, no mount)"; Prod = $r2_prod; Net10 = $r2_net10; Rust = $rustResult2 }
 
 # ============================================================
 # Benchmark 3: Mount (small test repo)
@@ -138,6 +162,10 @@ Remove-Item "$cloneRoot\mount_prod" -Recurse -Force -EA 0
 & $prodGVFS clone $TestRepo "$cloneRoot\mount_prod" --branch $TestBranch --no-mount 2>&1 | Out-Null
 Remove-Item "$cloneRoot\mount_net10" -Recurse -Force -EA 0
 & $net10GVFS clone $TestRepo "$cloneRoot\mount_net10" --branch $TestBranch --no-mount 2>&1 | Out-Null
+if ($IncludeRust) {
+    Remove-Item "$cloneRoot\mount_rust" -Recurse -Force -EA 0
+    & $rustGVFS clone $TestRepo "$cloneRoot\mount_rust" --branch $TestBranch --no-mount 2>&1 | Out-Null
+}
 
 $r3_prod = Measure-Operation -Name "Production" -Iterations $Iterations `
     -Operation { & $prodGVFS mount "$cloneRoot\mount_prod" 2>&1 } `
@@ -147,7 +175,14 @@ $r3_net10 = Measure-Operation -Name ".NET 10" -Iterations $Iterations `
     -Operation { & $net10GVFS mount "$cloneRoot\mount_net10" 2>&1 } `
     -Cleanup { & $net10GVFS unmount "$cloneRoot\mount_net10" 2>&1; Start-Sleep 2 }
 
-$allResults += [PSCustomObject]@{ Benchmark = "Mount (small repo)"; Prod = $r3_prod; Net10 = $r3_net10 }
+$rustResult3 = $null
+if ($IncludeRust) {
+    $rustResult3 = Measure-Operation -Name "Rust" -Iterations $Iterations `
+        -Operation { & $rustGVFS mount "$cloneRoot\mount_rust" 2>&1 } `
+        -Cleanup { & $rustGVFS unmount "$cloneRoot\mount_rust" 2>&1; Start-Sleep 2 }
+}
+
+$allResults += [PSCustomObject]@{ Benchmark = "Mount (small repo)"; Prod = $r3_prod; Net10 = $r3_net10; Rust = $rustResult3 }
 
 # ============================================================
 # Benchmark 4: Status (pipe roundtrip)
@@ -157,14 +192,16 @@ Write-Host "`n--- Benchmark 4: Status (named pipe roundtrip) ---" -ForegroundCol
 # Mount for status tests
 & $prodGVFS mount "$cloneRoot\mount_prod" 2>&1 | Out-Null
 & $net10GVFS mount "$cloneRoot\mount_net10" 2>&1 | Out-Null
+if ($IncludeRust) { & $rustGVFS mount "$cloneRoot\mount_rust" 2>&1 | Out-Null }
 
-# Wait until both mounts are fully ready (not just process started)
-$maxWait = 30
+# Wait until mounts are fully ready
+$maxWait = 60
 for ($w = 0; $w -lt $maxWait; $w++) {
     $prodStatus = & $prodGVFS status "$cloneRoot\mount_prod" 2>&1 | Out-String
     $net10Status = & $net10GVFS status "$cloneRoot\mount_net10" 2>&1 | Out-String
-    if ($prodStatus -match "Mount status: Ready" -and $net10Status -match "Mount status: Ready") {
-        Write-Host "  Both mounts ready after $($w+1)s"
+    $rustReady = if ($IncludeRust) { (& $rustGVFS status "$cloneRoot\mount_rust" 2>&1 | Out-String) -match "Ready" } else { $true }
+    if ($prodStatus -match "Mount status: Ready" -and $net10Status -match "Mount status: Ready" -and $rustReady) {
+        Write-Host "  All mounts ready after $($w+1)s"
         break
     }
     Start-Sleep 1
@@ -179,7 +216,14 @@ $r4_net10 = Measure-Operation -Name ".NET 10" -Iterations ($Iterations * 2) -Ope
     & $net10GVFS status "$cloneRoot\mount_net10" 2>&1
 }
 
-$allResults += [PSCustomObject]@{ Benchmark = "Status (pipe roundtrip)"; Prod = $r4_prod; Net10 = $r4_net10 }
+$rustResult4 = $null
+if ($IncludeRust) {
+    $rustResult4 = Measure-Operation -Name "Rust" -Iterations ($Iterations * 2) -Operation {
+        & $rustGVFS status "$cloneRoot\mount_rust" 2>&1
+    }
+}
+
+$allResults += [PSCustomObject]@{ Benchmark = "Status (pipe roundtrip)"; Prod = $r4_prod; Net10 = $r4_net10; Rust = $rustResult4 }
 
 # ============================================================
 # Benchmark 5: Prefetch
@@ -194,7 +238,14 @@ $r5_net10 = Measure-Operation -Name ".NET 10" -Iterations $cloneIter -Operation 
     & $net10GVFS prefetch "$cloneRoot\mount_net10" --files "*.md" 2>&1
 }
 
-$allResults += [PSCustomObject]@{ Benchmark = "Prefetch (*.md)"; Prod = $r5_prod; Net10 = $r5_net10 }
+$rustResult5 = $null
+if ($IncludeRust) {
+    $rustResult5 = Measure-Operation -Name "Rust" -Iterations $cloneIter -Operation {
+        & $rustGVFS prefetch "$cloneRoot\mount_rust" --files "*.md" 2>&1
+    }
+}
+
+$allResults += [PSCustomObject]@{ Benchmark = "Prefetch (*.md)"; Prod = $r5_prod; Net10 = $r5_net10; Rust = $rustResult5 }
 
 # ============================================================
 # Benchmark 6: Git Status (inside mounted repo)
@@ -209,7 +260,14 @@ $r6_net10 = Measure-Operation -Name ".NET 10" -Iterations $Iterations -Operation
     & $git -C "$cloneRoot\mount_net10\src" status 2>&1
 }
 
-$allResults += [PSCustomObject]@{ Benchmark = "Git Status"; Prod = $r6_prod; Net10 = $r6_net10 }
+$rustResult6 = $null
+if ($IncludeRust) {
+    $rustResult6 = Measure-Operation -Name "Rust" -Iterations $Iterations -Operation {
+        & $git -C "$cloneRoot\mount_rust\src" status 2>&1
+    }
+}
+
+$allResults += [PSCustomObject]@{ Benchmark = "Git Status"; Prod = $r6_prod; Net10 = $r6_net10; Rust = $rustResult6 }
 
 # ============================================================
 # Benchmark 7: Git Log
@@ -224,7 +282,14 @@ $r7_net10 = Measure-Operation -Name ".NET 10" -Iterations $Iterations -Operation
     & $git -C "$cloneRoot\mount_net10\src" log --oneline -100 2>&1
 }
 
-$allResults += [PSCustomObject]@{ Benchmark = "Git Log (-100)"; Prod = $r7_prod; Net10 = $r7_net10 }
+$rustResult7 = $null
+if ($IncludeRust) {
+    $rustResult7 = Measure-Operation -Name "Rust" -Iterations $Iterations -Operation {
+        & $git -C "$cloneRoot\mount_rust\src" log --oneline -100 2>&1
+    }
+}
+
+$allResults += [PSCustomObject]@{ Benchmark = "Git Log (-100)"; Prod = $r7_prod; Net10 = $r7_net10; Rust = $rustResult7 }
 
 # ============================================================
 # Benchmark 8: File Enumeration (ProjFS)
@@ -239,7 +304,14 @@ $r8_net10 = Measure-Operation -Name ".NET 10" -Iterations $Iterations -Operation
     (Get-ChildItem "$cloneRoot\mount_net10\src" -Recurse -File).Count
 }
 
-$allResults += [PSCustomObject]@{ Benchmark = "Dir Enumeration (ProjFS)"; Prod = $r8_prod; Net10 = $r8_net10 }
+$rustResult8 = $null
+if ($IncludeRust) {
+    $rustResult8 = Measure-Operation -Name "Rust" -Iterations $Iterations -Operation {
+        (Get-ChildItem "$cloneRoot\mount_rust\src" -Recurse -File).Count
+    }
+}
+
+$allResults += [PSCustomObject]@{ Benchmark = "Dir Enumeration (ProjFS)"; Prod = $r8_prod; Net10 = $r8_net10; Rust = $rustResult8 }
 
 # ============================================================
 # Benchmark 9: File Read (hydration through ProjFS)
@@ -254,7 +326,14 @@ $r9_net10 = Measure-Operation -Name ".NET 10" -Iterations $cloneIter -Operation 
     Get-Content "$cloneRoot\mount_net10\src\Readme.md" -Raw 2>&1
 }
 
-$allResults += [PSCustomObject]@{ Benchmark = "File Read (hydration)"; Prod = $r9_prod; Net10 = $r9_net10 }
+$rustResult9 = $null
+if ($IncludeRust) {
+    $rustResult9 = Measure-Operation -Name "Rust" -Iterations $cloneIter -Operation {
+        Get-Content "$cloneRoot\mount_rust\src\Readme.md" -Raw 2>&1
+    }
+}
+
+$allResults += [PSCustomObject]@{ Benchmark = "File Read (hydration)"; Prod = $r9_prod; Net10 = $r9_net10; Rust = $rustResult9 }
 
 # ============================================================
 # Benchmark 10: Unmount
@@ -269,7 +348,14 @@ $r10_net10 = Measure-Operation -Name ".NET 10" -Iterations $cloneIter `
     -Setup { & $net10GVFS mount "$cloneRoot\mount_net10" 2>&1; Start-Sleep 2 } `
     -Operation { & $net10GVFS unmount "$cloneRoot\mount_net10" 2>&1 }
 
-$allResults += [PSCustomObject]@{ Benchmark = "Unmount"; Prod = $r10_prod; Net10 = $r10_net10 }
+$rustResult10 = $null
+if ($IncludeRust) {
+    $rustResult10 = Measure-Operation -Name "Rust" -Iterations $cloneIter `
+        -Setup { & $rustGVFS mount "$cloneRoot\mount_rust" 2>&1; Start-Sleep 2 } `
+        -Operation { & $rustGVFS unmount "$cloneRoot\mount_rust" 2>&1 }
+}
+
+$allResults += [PSCustomObject]@{ Benchmark = "Unmount"; Prod = $r10_prod; Net10 = $r10_net10; Rust = $rustResult10 }
 
 # ============================================================
 # Large Repo Benchmarks (if available)
@@ -291,7 +377,9 @@ if (Test-Path $LargeRepo) {
 Write-Host "`n--- Cleanup ---" -ForegroundColor Yellow
 & $prodGVFS unmount "$cloneRoot\mount_prod" --skip-wait-for-lock 2>&1 | Out-Null
 & $net10GVFS unmount "$cloneRoot\mount_net10" --skip-wait-for-lock 2>&1 | Out-Null
+if ($IncludeRust) { & $rustGVFS unmount "$cloneRoot\mount_rust" 2>&1 | Out-Null }
 Get-Process GVFS.Mount -EA 0 | Where-Object { $_.StartTime -gt (Get-Date).AddHours(-1) } | Stop-Process -Force -EA 0
+Get-Process gvfs-mount -EA 0 | Where-Object { $_.StartTime -gt (Get-Date).AddHours(-1) } | Stop-Process -Force -EA 0
 Start-Sleep 3
 Remove-Item "$cloneRoot" -Recurse -Force -EA 0
 
@@ -302,9 +390,10 @@ Write-Host "`n--- Generating Report ---" -ForegroundColor Yellow
 
 $prodVersion = ((& $prodGVFS version) 2>$null | Select-Object -First 1)
 $net10Version = ((& $net10GVFS version) 2>$null | Select-Object -First 1)
+$rustVersion = if ($IncludeRust) { ((& $rustGVFS version) 2>$null | Select-Object -First 1) } else { "N/A" }
 
 $report = @"
-# VFSForGit .NET 10 Migration — Performance Comparison
+# VFSForGit Performance Comparison
 
 **Date**: $(Get-Date -Format "yyyy-MM-dd HH:mm")
 **Machine**: $env:COMPUTERNAME ($env:PROCESSOR_IDENTIFIER)
@@ -315,23 +404,24 @@ $report = @"
 |-------|---------|-----------|--------|
 | Production | $prodVersion | .NET Framework 4.7.1 | Installed (C:\Program Files\GVFS) |
 | .NET 10 | $net10Version | .NET 10.0 (self-contained) | Build output (Release) |
+| Rust | $rustVersion | Native (no runtime) | cargo build --release |
 
 ## Results
 
-| Benchmark | Production (ms) | .NET 10 (ms) | Delta | Change |
-|-----------|---------------:|-------------:|------:|--------|
+| Benchmark | Production (ms) | .NET 10 (ms) | Rust (ms) | Delta (Rust vs Prod) |
+|-----------|---------------:|-------------:|----------:|--------------------:|
 "@
 
 foreach ($r in $allResults) {
-    if ($r.Net10) {
-        $delta = $r.Net10.Avg - $r.Prod.Avg
-        $pct = if ($r.Prod.Avg -gt 0) { [math]::Round($delta / $r.Prod.Avg * 100, 1) } else { 0 }
-        $change = if ($pct -lt -5) { "**faster**" } elseif ($pct -gt 5) { "slower" } else { "~same" }
+    $net10Col = if ($r.Net10) { "$($r.Net10.Avg) ± $($r.Net10.StdDev)" } else { "N/A" }
+    $rustCol = if ($r.Rust) { "$($r.Rust.Avg) ± $($r.Rust.StdDev)" } else { "N/A" }
+    $deltaCol = if ($r.Rust -and $r.Prod.Avg -gt 0) {
+        $delta = $r.Rust.Avg - $r.Prod.Avg
+        $pct = [math]::Round($delta / $r.Prod.Avg * 100, 1)
         $sign = if ($delta -gt 0) { "+" } else { "" }
-        $report += "| $($r.Benchmark) | $($r.Prod.Avg) ± $($r.Prod.StdDev) | $($r.Net10.Avg) ± $($r.Net10.StdDev) | $sign$([math]::Round($delta, 1)) ($sign$pct%) | $change |" + "`r`n"
-    } else {
-        $report += "| $($r.Benchmark) | $($r.Prod.Avg) ± $($r.Prod.StdDev) | N/A | N/A | baseline |" + "`r`n"
-    }
+        "$sign$([math]::Round($delta, 1)) ($sign$pct%)"
+    } else { "N/A" }
+    $report += "| $($r.Benchmark) | $($r.Prod.Avg) ± $($r.Prod.StdDev) | $net10Col | $rustCol | $deltaCol |" + "`r`n"
 }
 
 $report += @"

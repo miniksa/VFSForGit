@@ -83,7 +83,8 @@ impl GitIndexProjection {
         let mut current = &*root;
 
         for part in &parts {
-            match current.get(*part) {
+            let key = part.to_lowercase();
+            match current.get(&key) {
                 Some(ProjectedEntry::Directory { children, .. }) => {
                     current = children;
                 }
@@ -106,7 +107,8 @@ impl GitIndexProjection {
 
         let mut current = &*root;
         for (i, part) in parts.iter().enumerate() {
-            match current.get(*part) {
+            let key = part.to_lowercase();
+            match current.get(&key) {
                 Some(entry) => {
                     if i == parts.len() - 1 {
                         return Some(entry.clone());
