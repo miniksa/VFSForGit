@@ -521,7 +521,7 @@ namespace GVFS.Virtualization
             // the creation of file placeholders if multiple requests for the same file are received at the same time on different
             // threads.
             this.filePlaceHolderCreationCount.AddOrUpdate(
-                triggeringProcessImageFileName,
+                triggeringProcessImageFileName ?? string.Empty,
                 (imageName) => { return new PlaceHolderCreateCounter(); },
                 (key, oldCount) => { oldCount.Increment(); return oldCount; });
         }
@@ -536,7 +536,7 @@ namespace GVFS.Virtualization
             this.GitIndexProjection.OnPlaceholderFolderCreated(relativePath);
 
             this.folderPlaceHolderCreationCount.AddOrUpdate(
-                triggeringProcessImageFileName,
+                triggeringProcessImageFileName ?? string.Empty,
                 (imageName) => { return new PlaceHolderCreateCounter(); },
                 (key, oldCount) => { oldCount.Increment(); return oldCount; });
         }
@@ -549,7 +549,7 @@ namespace GVFS.Virtualization
         public void OnPlaceholderFileHydrated(string triggeringProcessImageFileName)
         {
             this.fileHydrationCount.AddOrUpdate(
-                triggeringProcessImageFileName,
+                triggeringProcessImageFileName ?? string.Empty,
                 (imageName) => { return new PlaceHolderCreateCounter(); },
                 (key, oldCount) => { oldCount.Increment(); return oldCount; });
         }
