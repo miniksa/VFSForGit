@@ -11,11 +11,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Database.ManagedEsent" Version="3.2.0" />
-    <PackageReference Include="Microsoft.Database.Collections.Generic" Version="3.2.0" />
-    <PackageReference Include="Microsoft.Database.Isam" Version="3.2.0" />
-    <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
-    <PackageReference Include="System.ServiceProcess.ServiceController" Version="9.0.2" />
+    <PackageReference Include="Microsoft.Database.ManagedEsent" />
+    <PackageReference Include="Microsoft.Database.Collections.Generic" />
+    <PackageReference Include="Microsoft.Database.Isam" />
+    <PackageReference Include="System.IO.FileSystem.AccessControl" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" />
   </ItemGroup>
 
 </Project>

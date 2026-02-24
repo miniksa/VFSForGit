@@ -2,7 +2,6 @@
 using GVFS.PlatformLoader;
 using System;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 
 namespace GVFS.Mount
 {
@@ -12,39 +11,32 @@ namespace GVFS.Mount
         {
             GVFSPlatformLoader.Initialize();
 
-            var enlistmentRootArg = new Argument<string>("enlistment-root-path", "Full or relative path to the GVFS enlistment root");
-            var verbosityOpt = new Option<string>(new[] { "-v", "--verbosity" },
-                () => GVFSConstants.VerbParameters.Mount.DefaultVerbosity,
-                "Sets the verbosity of console logging. Accepts: Verbose, Informational, Warning, Error");
-            var keywordsOpt = new Option<string>(new[] { "-k", "--keywords" },
-                () => GVFSConstants.VerbParameters.Mount.DefaultKeywords,
-                "A CSV list of logging filter keywords. Accepts: Any, Network");
-            var debugWindowOpt = new Option<bool>(new[] { "-d", "--debug-window" }, () => false,
-                "Show the debug window. By default, all output is written to a log file and no debug window is shown.");
-            var startedByServiceOpt = new Option<string>(new[] { "-s", "--StartedByService" }, () => "false",
-                "Service initiated mount.");
-            var startedByVerbOpt = new Option<bool>(new[] { "-b", "--StartedByVerb" }, () => false,
-                "Verb initiated mount.");
+            var enlistmentRootArg = new Argument<string>("enlistment-root-path") { Description = "Full or relative path to the GVFS enlistment root" };
+            var verbosityOpt = new Option<string>("--verbosity", GVFSConstants.VerbParameters.Mount.DefaultVerbosity) { Description = "Sets the verbosity of console logging. Accepts: Verbose, Informational, Warning, Error" };
+            var keywordsOpt = new Option<string>("--keywords", GVFSConstants.VerbParameters.Mount.DefaultKeywords) { Description = "A CSV list of logging filter keywords. Accepts: Any, Network" };
+            var debugWindowOpt = new Option<bool>("--debug-window") { Description = "Show the debug window. By default, all output is written to a log file and no debug window is shown." };
+            var startedByServiceOpt = new Option<string>("--StartedByService", "false") { Description = "Service initiated mount." };
+            var startedByVerbOpt = new Option<bool>("--StartedByVerb") { Description = "Verb initiated mount." };
 
             var rootCommand = new RootCommand("Starts the background mount process");
-            rootCommand.AddArgument(enlistmentRootArg);
-            rootCommand.AddOption(verbosityOpt);
-            rootCommand.AddOption(keywordsOpt);
-            rootCommand.AddOption(debugWindowOpt);
-            rootCommand.AddOption(startedByServiceOpt);
-            rootCommand.AddOption(startedByVerbOpt);
+            rootCommand.Arguments.Add(enlistmentRootArg);
+            rootCommand.Options.Add(verbosityOpt);
+            rootCommand.Options.Add(keywordsOpt);
+            rootCommand.Options.Add(debugWindowOpt);
+            rootCommand.Options.Add(startedByServiceOpt);
+            rootCommand.Options.Add(startedByVerbOpt);
 
-            rootCommand.SetHandler((InvocationContext context) =>
+            rootCommand.SetAction((parseResult) =>
             {
                 try
                 {
                     var mount = new InProcessMountVerb();
-                    mount.EnlistmentRootPathParameter = context.ParseResult.GetValueForArgument(enlistmentRootArg);
-                    mount.Verbosity = context.ParseResult.GetValueForOption(verbosityOpt);
-                    mount.KeywordsCsv = context.ParseResult.GetValueForOption(keywordsOpt);
-                    mount.ShowDebugWindow = context.ParseResult.GetValueForOption(debugWindowOpt);
-                    mount.StartedByService = context.ParseResult.GetValueForOption(startedByServiceOpt);
-                    mount.StartedByVerb = context.ParseResult.GetValueForOption(startedByVerbOpt);
+                    mount.EnlistmentRootPathParameter = parseResult.GetValue(enlistmentRootArg);
+                    mount.Verbosity = parseResult.GetValue(verbosityOpt);
+                    mount.KeywordsCsv = parseResult.GetValue(keywordsOpt);
+                    mount.ShowDebugWindow = parseResult.GetValue(debugWindowOpt);
+                    mount.StartedByService = parseResult.GetValue(startedByServiceOpt);
+                    mount.StartedByVerb = parseResult.GetValue(startedByVerbOpt);
                     mount.Execute();
                 }
                 catch (MountAbortedException e)
@@ -54,7 +46,7 @@ namespace GVFS.Mount
                 }
             });
 
-            return rootCommand.Invoke(args);
+            return rootCommand.Parse(args).Invoke();
         }
     }
 }

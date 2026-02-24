@@ -18,16 +18,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NUnitLite" Version="3.14.0" />
-    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
-    <PackageReference Include="Moq" Version="4.20.72" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="NUnitLite" />
+    <PackageReference Include="NUnit3TestAdapter" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
   </ItemGroup>
 
   <!-- Because the unit tests may run on a machine without ProjFS installed
        (such as CI machines) we must include the native library for the tests -->
   <ItemGroup>
-    <PackageReference Include="GVFS.ProjFS" Version="2019.411.1"
+    <PackageReference Include="GVFS.ProjFS"
                       ExcludeAssets="all" GeneratePathProperty="true" />
     <None Include="$(PkgGVFS_ProjFS)\lib\ProjectedFSLib.dll">
       <Link>ProjectedFSLib.dll</Link>

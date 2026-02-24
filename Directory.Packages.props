@@ -1,0 +1,48 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Native bindings -->
+    <PackageVersion Include="GVFS.ProjFS" Version="2019.411.1" />
+    <PackageVersion Include="GVFS.VCRuntime" Version="0.2.0-build" />
+    <PackageVersion Include="LibGit2Sharp.NativeBinaries" Version="2.0.322" />
+
+    <!-- Data / Storage -->
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="9.0.2" />
+    <PackageVersion Include="Microsoft.Database.Collections.Generic" Version="3.2.0" />
+    <PackageVersion Include="Microsoft.Database.Isam" Version="3.2.0" />
+    <PackageVersion Include="Microsoft.Database.ManagedEsent" Version="3.2.0" />
+
+    <!-- HTTP: WinHttpHandler must be used instead of SocketsHttpHandler for
+         NTLM auth performance parity with .NET Framework. See HttpRequestor.cs. -->
+    <PackageVersion Include="System.Net.Http.WinHttpHandler" Version="4.5.4" />
+
+    <!-- Compression -->
+    <PackageVersion Include="SharpZipLib" Version="1.4.2" />
+
+    <!-- CLI -->
+    <PackageVersion Include="System.CommandLine" Version="2.0.3" />
+
+    <!-- Hosting / Services -->
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.2" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.2" />
+    <PackageVersion Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
+    <PackageVersion Include="System.ServiceProcess.ServiceController" Version="9.0.2" />
+
+    <!-- MSBuild SDK -->
+    <PackageVersion Include="Microsoft.Build.Framework" Version="17.12.6" />
+    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.12.6" />
+
+    <!-- Build tooling -->
+    <PackageVersion Include="MicroBuild.Core" Version="0.2.0" />
+    <PackageVersion Include="Tools.InnoSetup" Version="6.4.3" />
+
+    <!-- Testing -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="Moq" Version="4.20.72" />
+    <PackageVersion Include="NUnit3TestAdapter" Version="4.6.0" />
+    <PackageVersion Include="NUnitLite" Version="3.14.0" />
+  </ItemGroup>
+</Project>
