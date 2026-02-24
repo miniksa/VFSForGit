@@ -245,6 +245,23 @@ namespace GVFS.Common.Git
             }
         }
 
+        public void ConfigureSocketsHandlerSslIfNeeded(ITracer tracer, SocketsHttpHandler socketsHandler, GitProcess gitProcess)
+        {
+            X509Certificate2 cert = this.GitSsl?.GetCertificate(tracer, gitProcess);
+            if (cert != null)
+            {
+                var sslOptions = new System.Net.Security.SslClientAuthenticationOptions();
+
+                if (this.GitSsl != null && !this.GitSsl.ShouldVerify)
+                {
+                    sslOptions.RemoteCertificateValidationCallback = (sender, certificate, chain, errors) => true;
+                }
+
+                sslOptions.ClientCertificates = new System.Security.Cryptography.X509Certificates.X509CertificateCollection { cert };
+                socketsHandler.SslOptions = sslOptions;
+            }
+        }
+
         private static bool TryParseCredentialString(string credentialString, out string username, out string password)
         {
             if (credentialString != null)

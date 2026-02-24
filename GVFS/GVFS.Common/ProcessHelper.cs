@@ -69,7 +69,7 @@ namespace GVFS.Common
         public static bool IsDevelopmentVersion()
         {
             string version = ProcessHelper.GetCurrentProcessVersion();
-            return version.Equals("0.2.173.2") || version.StartsWith("0.2.173.2+");
+            return version.Equals("1.0.26014.1") || version.StartsWith("1.0.26014.1+");
         }
 
         public static string GetProgramLocation(string programLocaterCommand, string processName)

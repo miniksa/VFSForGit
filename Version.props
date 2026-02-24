@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <!-- Default GVFS version number if not specified at build time -->
-    <GVFSVersion Condition="'$(GVFSVersion)' == ''" >0.2.173.2</GVFSVersion>
+<GVFSVersion Condition="'$(GVFSVersion)' == ''" >1.0.26014.1</GVFSVersion>
 
     <!--
        Only update the minimum version if we rely upon a new command-line interface in

@@ -35,6 +35,10 @@
          Requires self-contained deployment. -->
     <SelfContained>true</SelfContained>
     <PublishAot>true</PublishAot>
+    <!-- Optimize for speed instead of size. GVFS is a performance-critical
+         system component where startup time and throughput matter more
+         than binary size. -->
+    <OptimizationPreference>Speed</OptimizationPreference>
   </PropertyGroup>
 
   <!-- Native project properties -->
