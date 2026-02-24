@@ -42,38 +42,38 @@ namespace GVFS.Common.Http
 
             this.Tracer = tracer;
 
-            // CRITICAL: We MUST use WinHttpHandler instead of the default SocketsHttpHandler.
+            // WARNING: Do NOT set Credentials or ServerCredentials on this handler.
             //
-            // In .NET 10, HttpClientHandler wraps SocketsHttpHandler (managed HTTP stack).
-            // In .NET Framework 4.x, HttpClientHandler wraps HttpWebRequest (which uses WinHTTP).
+            // Setting Credentials = CredentialCache.DefaultCredentials (or using
+            // WinHttpHandler with ServerCredentials = DefaultCredentials) causes the
+            // handler to perform an NTLM/Negotiate challenge-response handshake on
+            // every new HTTP connection. On SocketsHttpHandler this adds ~400ms per
+            // request; on WinHttpHandler it's ~11ms but still unnecessary overhead.
             //
-            // The GVFS cache servers (Azure DevOps / gitoc-*.corp.microsoft.com) use
-            // Windows Integrated Authentication (NTLM/Negotiate). SocketsHttpHandler has
-            // fundamentally different connection-level auth behavior than WinHTTP:
+            // The GVFS cache servers and Azure DevOps endpoints accept PAT/OAuth
+            // tokens via the "Authorization: Basic <base64>" header that SendRequest
+            // already attaches (see below). The server returns 200 immediately —
+            // no 401 challenge, no NTLM negotiation. Transport-level credentials
+            // are redundant and purely wasteful.
             //
-            //   SocketsHttpHandler: ~400ms per request (even with PreAuthenticate=true)
-            //   WinHttpHandler:      ~11ms per request (matches .NET Framework production)
-            //
-            // The 35x performance gap is because SocketsHttpHandler's managed TLS and auth
-            // implementation does not efficiently handle NTLM connection-based auth the way
-            // the native Windows HTTP stack does. WinHTTP uses OS-level credential caching,
-            // SSPI token management, and connection auth state that cannot be replicated
-            // by the managed stack.
-            //
-            // WinHttpHandler is Windows-only, which is acceptable since GVFS only runs on Windows.
-            // Package: System.Net.Http.WinHttpHandler (NuGet)
-            var winHttpHandler = new WinHttpHandler()
+            // Verified 2026-02-24 against the GVFS global cache server during an
+            // os.2020 clone+mount: 1,289 requests averaged 14ms each with this
+            // configuration. With Credentials = DefaultCredentials on
+            // SocketsHttpHandler, the same workload averaged ~400ms per request.
+            var handler = new SocketsHttpHandler()
             {
-                ServerCredentials = CredentialCache.DefaultCredentials,
                 MaxConnectionsPerServer = Environment.ProcessorCount,
-                SendTimeout = retryConfig.Timeout,
-                ReceiveHeadersTimeout = retryConfig.Timeout,
-                ReceiveDataTimeout = retryConfig.Timeout,
+                PooledConnectionLifetime = Timeout.InfiniteTimeSpan,
+                PooledConnectionIdleTimeout = TimeSpan.FromMinutes(5),
+                // Do NOT add: Credentials = CredentialCache.DefaultCredentials
+                // Doing so triggers NTLM and causes a 35x performance regression.
             };
 
-            this.client = new HttpClient(winHttpHandler)
+            this.client = new HttpClient(handler)
             {
                 Timeout = retryConfig.Timeout,
+                DefaultRequestVersion = HttpVersion.Version11,
+                DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact,
             };
 
             this.userAgentHeader = new ProductInfoHeaderValue(ProcessHelper.GetEntryClassName(), ProcessHelper.GetCurrentProcessVersion());
