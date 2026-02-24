@@ -4,6 +4,9 @@ using GVFS.PlatformLoader;
 using System;
 using System.CommandLine;
 using System.CommandLine.Parsing;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("GVFS.CommandLine.Tests")]
 
 namespace GVFS
 {
@@ -38,14 +41,14 @@ namespace GVFS
             }
         }
 
-        private static Option<string> CreateInternalUseOnlyOption()
+        internal static Option<string> CreateInternalUseOnlyOption()
         {
             var opt = new Option<string>("--internal_use_only") { Description = "This parameter is reserved for internal use." };
             opt.Hidden = true;
             return opt;
         }
 
-        private static void ApplyCommonOptions(GVFSVerb verb, string internalParams)
+        internal static void ApplyCommonOptions(GVFSVerb verb, string internalParams)
         {
             if (!string.IsNullOrEmpty(internalParams))
             {
@@ -57,7 +60,7 @@ namespace GVFS
         /// Execute a verb, catching VerbAbortedException and converting to exit code.
         /// GVFS verbs use VerbAbortedException for flow control (exit with specific code).
         /// </summary>
-        private static void ExecuteVerb(GVFSVerb verb)
+        internal static void ExecuteVerb(GVFSVerb verb)
         {
             try
             {
@@ -70,7 +73,7 @@ namespace GVFS
             }
         }
 
-        private static Argument<string> CreateEnlistmentRootArgument(bool required = false)
+        internal static Argument<string> CreateEnlistmentRootArgument(bool required = false)
         {
             var arg = new Argument<string>("enlistment-root-path");
             arg.Description = "Full or relative path to the GVFS enlistment root";
@@ -88,7 +91,7 @@ namespace GVFS
         /// For verbs that are NOT CloneVerb and NOT ForNoEnlistment, default
         /// EnlistmentRootPathParameter to the current directory if not specified.
         /// </summary>
-        private static void ApplyEnlistmentRootDefault(GVFSVerb verb)
+        internal static void ApplyEnlistmentRootDefault(GVFSVerb verb)
         {
             if (string.IsNullOrEmpty(verb.EnlistmentRootPathParameter))
             {
@@ -96,7 +99,7 @@ namespace GVFS
             }
         }
 
-        private static RootCommand BuildRootCommand()
+        internal static RootCommand BuildRootCommand()
         {
             var rootCommand = new RootCommand("GVFS: Virtual File System for Git");
 
@@ -596,11 +599,11 @@ namespace GVFS
         {
             var keyArg = new Argument<string>("key");
             keyArg.Description = "Name of setting that is to be set or read";
-            // Default: "" (set via constructor)
+            keyArg.Arity = ArgumentArity.ZeroOrOne;
 
             var valueArg = new Argument<string>("value");
             valueArg.Description = "Value of setting to be set";
-            // Default: "" (set via constructor)
+            valueArg.Arity = ArgumentArity.ZeroOrOne;
 
             var listOpt = new Option<bool>("--list") { Description = "Show all settings" };
             listOpt.Aliases.Add("-l");
@@ -622,8 +625,8 @@ namespace GVFS
             {
                 var verb = new ConfigVerb();
                 ApplyCommonOptions(verb, parseResult.GetValue(internalOpt));
-                verb.Key = parseResult.GetValue(keyArg);
-                verb.Value = parseResult.GetValue(valueArg);
+                verb.Key = parseResult.GetValue(keyArg) ?? "";
+                verb.Value = parseResult.GetValue(valueArg) ?? "";
                 verb.List = parseResult.GetValue(listOpt);
                 verb.KeyToDelete = parseResult.GetValue(deleteOpt);
                 ExecuteVerb(verb);

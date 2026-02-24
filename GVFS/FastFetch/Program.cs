@@ -1,5 +1,8 @@
 ﻿using System.CommandLine;
 using GVFS.PlatformLoader;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("GVFS.CommandLine.Tests")]
 
 namespace FastFetch
 {
@@ -9,6 +12,12 @@ namespace FastFetch
         {
             GVFSPlatformLoader.Initialize();
 
+            var rootCommand = BuildRootCommand();
+            return rootCommand.Parse(args).Invoke();
+        }
+
+        internal static RootCommand BuildRootCommand()
+        {
             var commitOpt = new Option<string>("--commit") { Description = "Commit to fetch" };
             commitOpt.Aliases.Add("-c");
             var branchOpt = new Option<string>("--branch") { Description = "Branch to fetch" };
@@ -73,7 +82,7 @@ namespace FastFetch
                 verb.Execute();
             });
 
-            return rootCommand.Parse(args).Invoke();
+            return rootCommand;
         }
     }
 }

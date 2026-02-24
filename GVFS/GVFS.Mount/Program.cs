@@ -2,6 +2,9 @@
 using GVFS.PlatformLoader;
 using System;
 using System.CommandLine;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("GVFS.CommandLine.Tests")]
 
 namespace GVFS.Mount
 {
@@ -11,6 +14,12 @@ namespace GVFS.Mount
         {
             GVFSPlatformLoader.Initialize();
 
+            var rootCommand = BuildRootCommand();
+            return rootCommand.Parse(args).Invoke();
+        }
+
+        internal static RootCommand BuildRootCommand()
+        {
             var enlistmentRootArg = new Argument<string>("enlistment-root-path") { Description = "Full or relative path to the GVFS enlistment root" };
             var verbosityOpt = new Option<string>("--verbosity") { Description = "Sets the verbosity of console logging. Accepts: Verbose, Informational, Warning, Error", DefaultValueFactory = _ => GVFSConstants.VerbParameters.Mount.DefaultVerbosity };
             var keywordsOpt = new Option<string>("--keywords") { Description = "A CSV list of logging filter keywords. Accepts: Any, Network", DefaultValueFactory = _ => GVFSConstants.VerbParameters.Mount.DefaultKeywords };
@@ -46,7 +55,7 @@ namespace GVFS.Mount
                 }
             });
 
-            return rootCommand.Parse(args).Invoke();
+            return rootCommand;
         }
     }
 }
