@@ -12,10 +12,10 @@ namespace GVFS.Mount
             GVFSPlatformLoader.Initialize();
 
             var enlistmentRootArg = new Argument<string>("enlistment-root-path") { Description = "Full or relative path to the GVFS enlistment root" };
-            var verbosityOpt = new Option<string>("--verbosity", GVFSConstants.VerbParameters.Mount.DefaultVerbosity) { Description = "Sets the verbosity of console logging. Accepts: Verbose, Informational, Warning, Error" };
-            var keywordsOpt = new Option<string>("--keywords", GVFSConstants.VerbParameters.Mount.DefaultKeywords) { Description = "A CSV list of logging filter keywords. Accepts: Any, Network" };
+            var verbosityOpt = new Option<string>("--verbosity") { Description = "Sets the verbosity of console logging. Accepts: Verbose, Informational, Warning, Error", DefaultValueFactory = _ => GVFSConstants.VerbParameters.Mount.DefaultVerbosity };
+            var keywordsOpt = new Option<string>("--keywords") { Description = "A CSV list of logging filter keywords. Accepts: Any, Network", DefaultValueFactory = _ => GVFSConstants.VerbParameters.Mount.DefaultKeywords };
             var debugWindowOpt = new Option<bool>("--debug-window") { Description = "Show the debug window. By default, all output is written to a log file and no debug window is shown." };
-            var startedByServiceOpt = new Option<string>("--StartedByService", "false") { Description = "Service initiated mount." };
+            var startedByServiceOpt = new Option<string>("--StartedByService") { Description = "Service initiated mount.", DefaultValueFactory = _ => "false" };
             var startedByVerbOpt = new Option<bool>("--StartedByVerb") { Description = "Verb initiated mount." };
 
             var rootCommand = new RootCommand("Starts the background mount process");
