@@ -15,10 +15,6 @@
     <PackageVersion Include="Microsoft.Database.Isam" Version="3.2.0" />
     <PackageVersion Include="Microsoft.Database.ManagedEsent" Version="3.2.0" />
 
-    <!-- HTTP: WinHttpHandler must be used instead of SocketsHttpHandler for
-         NTLM auth performance parity with .NET Framework. See HttpRequestor.cs. -->
-    <PackageVersion Include="System.Net.Http.WinHttpHandler" Version="4.5.4" />
-
     <!-- Compression -->
     <PackageVersion Include="SharpZipLib" Version="1.4.2" />
 

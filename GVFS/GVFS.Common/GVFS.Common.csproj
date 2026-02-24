@@ -9,7 +9,6 @@
     <PackageReference Include="LibGit2Sharp.NativeBinaries" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="SharpZipLib" />
-    <PackageReference Include="System.Net.Http.WinHttpHandler" />
   </ItemGroup>
 
   <Target Name="_GenerateConstantsFile" BeforeTargets="BeforeCompile">
