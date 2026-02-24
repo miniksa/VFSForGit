@@ -1,11 +1,14 @@
 <#
 .SYNOPSIS
-    VFSForGit .NET Framework 4.7.1 vs .NET 10 Performance Comparison
+    VFSForGit .NET Framework 4.7.1 vs .NET 10 NativeAOT Performance Comparison
 
 .DESCRIPTION
     Benchmarks common GVFS operations against two builds:
-    - Production: C:\Program Files\GVFS\ (.NET Framework 4.7.1)
-    - .NET 10:    Build output from the migration branch
+    - Production: .NET Framework 4.7.1 (from installer or backup)
+    - .NET 10:    NativeAOT build from the migration branch
+
+    Includes both small-repo micro-benchmarks and large-repo (OS) hydration
+    benchmarks that exercise the HTTP stack (WinHttpHandler vs original).
 
     Must be run as Administrator (service install requires elevation).
 
@@ -16,46 +19,68 @@
     URL of the test repo to clone (default: ForTests repo)
 
 .PARAMETER LargeRepo
-    Path to an existing large GVFS repo for mount/status tests (default: D:\os)
+    URL of the OS repo for clone/hydration tests (default: os.2020)
+
+.PARAMETER LargeRepoBranch
+    Branch for large repo clone (default: official/ge_current_directes_corebuild)
+
+.PARAMETER CacheServer
+    Cache server URL (default: global traffic manager)
 
 .PARAMETER OutputFile
     Path to write the markdown report (default: benchmark-results.md)
+
+.PARAMETER SkipSmallRepo
+    Skip small repo benchmarks and only run large repo tests
+
+.PARAMETER SkipLargeRepo
+    Skip large repo benchmarks and only run small repo tests
 #>
 param(
     [int]$Iterations = 5,
     [string]$TestRepo = "https://gvfs.visualstudio.com/ci/_git/ForTests",
     [string]$TestBranch = "FunctionalTests/20201014",
-    [string]$LargeRepo = "D:\os",
+    [string]$LargeRepoUrl = "https://dev.azure.com/microsoft/os/_git/os.2020",
+    [string]$LargeRepoBranch = "official/ge_current_directes_corebuild",
+    [string]$CacheServer = "",
     [string]$OutputFile = "D:\src\VFSForGit\benchmark-results-$(Get-Date -Format 'yyyyMMdd-HHmmss').md",
-    [switch]$UsePublished
+    [switch]$UsePublished,
+    [switch]$SkipSmallRepo,
+    [switch]$SkipLargeRepo
 )
 
 $ErrorActionPreference = "Continue"
 
 # --- Configuration ---
-$prodGVFS = "C:\Program Files\GVFS\GVFS.exe"
-if ($UsePublished) {
-    $net10GVFS = "D:\src\out\gvfs-aot-layout\GVFS.exe"
-    $net10Label = ".NET 10 (NativeAOT)"
-} else {
-    $net10GVFS = "D:\src\out\GVFS\bin\Release\net10.0-windows10.0.17763.0\win-x64\GVFS.exe"
-    $net10Label = ".NET 10 (JIT only)"
-}
+$prodDir = "D:\src\out\gvfs-production"
+$aotDir  = "D:\src\out\gvfs-aot-layout"
+$gvfsInstall = "C:\Program Files\GVFS"
+$prodGVFS = "$gvfsInstall\GVFS.exe"
+$net10GVFS = "$gvfsInstall\GVFS.exe"  # Same path — we swap the installed files
+$net10Label = ".NET 10 (NativeAOT)"
 $git = "C:\Program Files\Git\cmd\git.exe"
 $cloneRoot = "C:\Repos\GVFSBenchmark"
+$largeCloneRoot = "D:\"
+$cacheArg = if ($CacheServer) { @("--cache-server-url", $CacheServer) } else { @() }
 
 # Verify both builds exist
-if (-not (Test-Path $prodGVFS)) { throw "Production GVFS not found at $prodGVFS" }
-if (-not (Test-Path $net10GVFS)) { throw ".NET 10 GVFS not found at $net10GVFS" }
+if (-not (Test-Path "$prodDir\GVFS.exe")) { throw "Production GVFS backup not found at $prodDir" }
+if (-not (Test-Path "$aotDir\GVFS.exe"))  { throw "AOT GVFS build not found at $aotDir" }
+
+function Install-GVFSBuild {
+    param([string]$SourceDir, [string]$Label)
+    Stop-Process -Name "GVFS*" -Force -EA 0
+    Start-Sleep 2
+    Copy-Item "$SourceDir\*" $gvfsInstall -Recurse -Force
+    Start-Service GVFS.Service -EA 0
+    Start-Sleep 1
+    Write-Host "  Installed $Label`: $(& $prodGVFS version 2>&1)"
+}
 
 Write-Host "=== VFSForGit Performance Benchmark ===" -ForegroundColor Cyan
-Write-Host "Production: $prodGVFS"
-Write-Host "  Version:  $(& $prodGVFS version 2>&1)"
-Write-Host ".NET 10:    $net10GVFS"
-Write-Host "  Version:  $(& $net10GVFS version 2>&1)"
+Write-Host "Production: $prodDir"
+Write-Host "AOT:        $aotDir"
 Write-Host "Iterations: $Iterations"
-Write-Host "Test Repo:  $TestRepo"
-Write-Host "Large Repo: $LargeRepo"
 Write-Host ""
 
 # --- Helper Functions ---
@@ -97,12 +122,15 @@ $allResults = @()
 # ============================================================
 # Benchmark 1: Startup Time (gvfs version)
 # ============================================================
+if (-not $SkipSmallRepo) {
 Write-Host "`n--- Benchmark 1: Startup Time (gvfs version) ---" -ForegroundColor Yellow
 
+Install-GVFSBuild -SourceDir $prodDir -Label "Production"
 $r1_prod = Measure-Operation -Name "Production" -Iterations $Iterations -Operation {
     & $prodGVFS version 2>&1
 }
 
+Install-GVFSBuild -SourceDir $aotDir -Label "AOT"
 $r1_net10 = Measure-Operation -Name ".NET 10" -Iterations $Iterations -Operation {
     & $net10GVFS version 2>&1
 }
@@ -116,11 +144,13 @@ Write-Host "`n--- Benchmark 2: Clone (small test repo, no mount) ---" -Foregroun
 
 $cloneIter = [math]::Min($Iterations, 3)  # Clones are slow, limit iterations
 
+Install-GVFSBuild -SourceDir $prodDir -Label "Production"
 $r2_prod = Measure-Operation -Name "Production" -Iterations $cloneIter `
     -Setup { Remove-Item "$cloneRoot\prod" -Recurse -Force -EA 0 } `
     -Operation { & $prodGVFS clone $TestRepo "$cloneRoot\prod" --branch $TestBranch --no-mount 2>&1 } `
     -Cleanup { & $prodGVFS unmount "$cloneRoot\prod" --skip-wait-for-lock 2>&1; Start-Sleep 2; Remove-Item "$cloneRoot\prod" -Recurse -Force -EA 0 }
 
+Install-GVFSBuild -SourceDir $aotDir -Label "AOT"
 $r2_net10 = Measure-Operation -Name ".NET 10" -Iterations $cloneIter `
     -Setup { Remove-Item "$cloneRoot\net10" -Recurse -Force -EA 0 } `
     -Operation { & $net10GVFS clone $TestRepo "$cloneRoot\net10" --branch $TestBranch --no-mount 2>&1 } `
@@ -134,16 +164,21 @@ $allResults += [PSCustomObject]@{ Benchmark = "Clone (small repo, no mount)"; Pr
 Write-Host "`n--- Benchmark 3: Mount + Unmount (small test repo) ---" -ForegroundColor Yellow
 
 # Pre-clone for mount tests
+Install-GVFSBuild -SourceDir $prodDir -Label "Production"
 Remove-Item "$cloneRoot\mount_prod" -Recurse -Force -EA 0
 & $prodGVFS clone $TestRepo "$cloneRoot\mount_prod" --branch $TestBranch --no-mount 2>&1 | Out-Null
+Install-GVFSBuild -SourceDir $aotDir -Label "AOT"
 Remove-Item "$cloneRoot\mount_net10" -Recurse -Force -EA 0
 & $net10GVFS clone $TestRepo "$cloneRoot\mount_net10" --branch $TestBranch --no-mount 2>&1 | Out-Null
+
+Install-GVFSBuild -SourceDir $prodDir -Label "Production"
 
 $r3_prod = Measure-Operation -Name "Production" -Iterations $Iterations `
     -Operation { & $prodGVFS mount "$cloneRoot\mount_prod" 2>&1 } `
     -Cleanup { & $prodGVFS unmount "$cloneRoot\mount_prod" 2>&1; Start-Sleep 2 }
 
 $r3_net10 = Measure-Operation -Name ".NET 10" -Iterations $Iterations `
+    -Setup { Install-GVFSBuild -SourceDir $aotDir -Label "AOT" } `
     -Operation { & $net10GVFS mount "$cloneRoot\mount_net10" 2>&1 } `
     -Cleanup { & $net10GVFS unmount "$cloneRoot\mount_net10" 2>&1; Start-Sleep 2 }
 
@@ -155,7 +190,9 @@ $allResults += [PSCustomObject]@{ Benchmark = "Mount (small repo)"; Prod = $r3_p
 Write-Host "`n--- Benchmark 4: Status (named pipe roundtrip) ---" -ForegroundColor Yellow
 
 # Mount for status tests
+Install-GVFSBuild -SourceDir $prodDir -Label "Production"
 & $prodGVFS mount "$cloneRoot\mount_prod" 2>&1 | Out-Null
+Install-GVFSBuild -SourceDir $aotDir -Label "AOT"
 & $net10GVFS mount "$cloneRoot\mount_net10" 2>&1 | Out-Null
 
 # Wait until both mounts are fully ready (not just process started)
@@ -266,42 +303,127 @@ $r10_prod = Measure-Operation -Name "Production" -Iterations $cloneIter `
     -Operation { & $prodGVFS unmount "$cloneRoot\mount_prod" 2>&1 }
 
 $r10_net10 = Measure-Operation -Name ".NET 10" -Iterations $cloneIter `
-    -Setup { & $net10GVFS mount "$cloneRoot\mount_net10" 2>&1; Start-Sleep 2 } `
+    -Setup { Install-GVFSBuild -SourceDir $aotDir -Label "AOT"; & $net10GVFS mount "$cloneRoot\mount_net10" 2>&1; Start-Sleep 2 } `
     -Operation { & $net10GVFS unmount "$cloneRoot\mount_net10" 2>&1 }
 
 $allResults += [PSCustomObject]@{ Benchmark = "Unmount"; Prod = $r10_prod; Net10 = $r10_net10 }
 
-# ============================================================
-# Large Repo Benchmarks (if available)
-# ============================================================
-if (Test-Path $LargeRepo) {
-    Write-Host "`n--- Benchmark 11: Large Repo Status ($LargeRepo) ---" -ForegroundColor Yellow
-    Write-Host "  (Using existing mount - same GVFS.Mount process)"
+} # end SkipSmallRepo
 
-    $r11 = Measure-Operation -Name "Large Repo Status" -Iterations $Iterations -Operation {
-        & $git -C "$LargeRepo" status --short 2>&1
+# ============================================================
+# Large Repo Benchmarks (OS repo — exercises HTTP stack heavily)
+# ============================================================
+if (-not $SkipLargeRepo) {
+    Write-Host "`n--- Benchmark 11: Large Repo Clone + Prefetch ---" -ForegroundColor Yellow
+    Write-Host "  This exercises the HTTP download stack (WinHttpHandler vs SocketsHttpHandler)"
+
+    # --- Production clone ---
+    Install-GVFSBuild -SourceDir $prodDir -Label "Production"
+    $prodLargePath = "$largeCloneRoot\os_bench_prod"
+    $prodLargeCache = "$largeCloneRoot\os_bench_prod_cache"
+
+    Remove-Item $prodLargePath -Recurse -Force -EA 0
+    Remove-Item $prodLargeCache -Recurse -Force -EA 0
+
+    $r11_prod = Measure-Operation -Name "Production" -Iterations 1 -Operation {
+        & $prodGVFS clone $LargeRepoUrl $prodLargePath --branch $LargeRepoBranch --local-cache-path $prodLargeCache @cacheArg 2>&1
     }
 
-    $allResults += [PSCustomObject]@{ Benchmark = "Large Repo Git Status"; Prod = $r11; Net10 = $null }
+    # --- AOT clone ---
+    & $prodGVFS unmount $prodLargePath 2>&1 | Out-Null
+    Install-GVFSBuild -SourceDir $aotDir -Label "AOT"
+    $aotLargePath = "$largeCloneRoot\os_bench_aot"
+    $aotLargeCache = "$largeCloneRoot\os_bench_aot_cache"
+
+    Remove-Item $aotLargePath -Recurse -Force -EA 0
+    Remove-Item $aotLargeCache -Recurse -Force -EA 0
+
+    $r11_net10 = Measure-Operation -Name ".NET 10" -Iterations 1 -Operation {
+        & $net10GVFS clone $LargeRepoUrl $aotLargePath --branch $LargeRepoBranch --local-cache-path $aotLargeCache @cacheArg 2>&1
+    }
+
+    $allResults += [PSCustomObject]@{ Benchmark = "Large Repo Clone+Prefetch"; Prod = $r11_prod; Net10 = $r11_net10 }
+
+    # ============================================================
+    # Benchmark 12: Hydration / File Access (HTTP object downloads)
+    # ============================================================
+    Write-Host "`n--- Benchmark 12: Hydration — Directory Listing (HTTP object downloads) ---" -ForegroundColor Yellow
+    Write-Host "  This is the critical benchmark: per-request HTTP latency under load"
+
+    # Mount both
+    & $prodGVFS unmount $aotLargePath 2>&1 | Out-Null
+    Install-GVFSBuild -SourceDir $prodDir -Label "Production"
+    & $prodGVFS mount $prodLargePath 2>&1 | Out-Null
+    Start-Sleep 3
+
+    $hydrationPath = "src\OneCore\Base\wil\Containment"
+
+    $r12_prod = Measure-Operation -Name "Production" -Iterations 1 -Operation {
+        (Get-ChildItem "$prodLargePath\$hydrationPath" -Recurse -File -EA 0).Count
+    }
+
+    & $prodGVFS unmount $prodLargePath 2>&1 | Out-Null
+    Install-GVFSBuild -SourceDir $aotDir -Label "AOT"
+    & $net10GVFS mount $aotLargePath 2>&1 | Out-Null
+    Start-Sleep 3
+
+    $r12_net10 = Measure-Operation -Name ".NET 10" -Iterations 1 -Operation {
+        (Get-ChildItem "$aotLargePath\$hydrationPath" -Recurse -File -EA 0).Count
+    }
+
+    $allResults += [PSCustomObject]@{ Benchmark = "Hydration (dir listing)"; Prod = $r12_prod; Net10 = $r12_net10 }
+
+    # ============================================================
+    # Benchmark 13: HTTP Response Time Analysis
+    # ============================================================
+    Write-Host "`n--- Benchmark 13: HTTP Response Time Analysis (from mount logs) ---" -ForegroundColor Yellow
+
+    # Analyze the mount logs from the hydration test
+    $prodMountLog = Get-ChildItem "$prodLargePath\.gvfs\logs\gvfs_mount_process_*.log" -EA 0 | Sort-Object Name -Descending | Select-Object -First 1
+    $aotMountLog  = Get-ChildItem "$aotLargePath\.gvfs\logs\gvfs_mount_process_*.log" -EA 0 | Sort-Object Name -Descending | Select-Object -First 1
+
+    if ($prodMountLog -and $aotMountLog) {
+        $prodTimes = @(); Select-String "responseWaitTimeMS" $prodMountLog.FullName | ForEach-Object { if ($_.Line -match '"responseWaitTimeMS":"([^"]+)"') { $prodTimes += [double]$Matches[1] } }
+        $aotTimes  = @(); Select-String "responseWaitTimeMS" $aotMountLog.FullName  | ForEach-Object { if ($_.Line -match '"responseWaitTimeMS":"([^"]+)"') { $aotTimes  += [double]$Matches[1] } }
+
+        Write-Host "  Production HTTP: n=$($prodTimes.Count) sum=$([math]::Round(($prodTimes | Measure-Object -Sum).Sum))ms max=$([math]::Round(($prodTimes | Measure-Object -Maximum).Maximum, 1))ms"
+        Write-Host "  AOT HTTP:        n=$($aotTimes.Count)  sum=$([math]::Round(($aotTimes  | Measure-Object -Sum).Sum))ms max=$([math]::Round(($aotTimes  | Measure-Object -Maximum).Maximum, 1))ms"
+
+        # Store as pseudo-benchmark results for the report
+        $r13_prod  = [PSCustomObject]@{ Name="Production"; Min=0; Max=0; Avg=[math]::Round(($prodTimes | Measure-Object -Sum).Sum); Median=0; StdDev=0 }
+        $r13_net10 = [PSCustomObject]@{ Name=".NET 10";    Min=0; Max=0; Avg=[math]::Round(($aotTimes  | Measure-Object -Sum).Sum); Median=0; StdDev=0 }
+        $allResults += [PSCustomObject]@{ Benchmark = "HTTP Total Wait (ms)"; Prod = $r13_prod; Net10 = $r13_net10 }
+    }
+
+    # Cleanup large repos
+    Write-Host "`n--- Cleanup large repos ---"
+    & $net10GVFS unmount $aotLargePath 2>&1 | Out-Null
+    Stop-Process -Name "GVFS*" -Force -EA 0
+    Start-Sleep 3
+    Remove-Item $prodLargePath -Recurse -Force -EA 0
+    Remove-Item $prodLargeCache -Recurse -Force -EA 0
+    Remove-Item $aotLargePath -Recurse -Force -EA 0
+    Remove-Item $aotLargeCache -Recurse -Force -EA 0
 }
 
 # ============================================================
 # Cleanup
 # ============================================================
 Write-Host "`n--- Cleanup ---" -ForegroundColor Yellow
-& $prodGVFS unmount "$cloneRoot\mount_prod" --skip-wait-for-lock 2>&1 | Out-Null
-& $net10GVFS unmount "$cloneRoot\mount_net10" --skip-wait-for-lock 2>&1 | Out-Null
-Get-Process GVFS.Mount -EA 0 | Where-Object { $_.StartTime -gt (Get-Date).AddHours(-1) } | Stop-Process -Force -EA 0
+Stop-Process -Name "GVFS*" -Force -EA 0
 Start-Sleep 3
 Remove-Item "$cloneRoot" -Recurse -Force -EA 0
+
+# Restore production as the installed version
+Install-GVFSBuild -SourceDir $prodDir -Label "Production (restored)"
 
 # ============================================================
 # Generate Report
 # ============================================================
 Write-Host "`n--- Generating Report ---" -ForegroundColor Yellow
 
-$prodVersion = ((& $prodGVFS version) 2>$null | Select-Object -First 1)
-$net10Version = ((& $net10GVFS version) 2>$null | Select-Object -First 1)
+$prodVersion = & "$prodDir\GVFS.exe" version 2>$null | Select-Object -First 1
+$net10Version = & "$aotDir\GVFS.exe" version 2>$null | Select-Object -First 1
 
 $report = @"
 # VFSForGit .NET 10 Migration — Performance Comparison
