@@ -119,6 +119,34 @@ All 5 managed executables compile to native binaries:
 | GVFS.Service.UI.exe | 7.4 MB | Tray notification |
 | GVFS.Hooks.exe | 2.8 MB | Git hooks |
 
+### HTTP Performance: The NTLM Trap
+
+Initial testing showed `SocketsHttpHandler` at ~400ms/request vs production's ~12ms/request.
+Setting `Credentials = CredentialCache.DefaultCredentials` on the handler triggered unnecessary
+NTLM authentication handshakes on every connection. The cache server accepts PAT/OAuth via
+the `Authorization: Basic` header directly — NTLM adds no value and costs ~400ms per connection.
+
+**Fix:** Use plain `SocketsHttpHandler` *without* setting `Credentials` or `ServerCredentials`.
+Authentication is handled per-request via the `Authorization` header, matching production behavior.
+Result: ~14ms/request — matching the .NET Framework production build.
+
+### Build System Improvements
+
+- **Centralized TargetFramework** — `Directory.Build.props` sets `net10.0-windows10.0.17763.0`
+  for all C# projects. Only `GVFS.MSBuild.csproj` overrides to `netstandard2.0`.
+- **Centralized packages** — `Directory.Packages.props` manages all NuGet package versions
+  (`ManagePackageVersionsCentrally`). Individual csproj files use `<PackageReference>` without `Version`.
+- **IjwHost removed** — `Directory.Build.targets` no longer copies `ijwhost.dll`. The C++/CLI
+  `ProjectedFSLib.Managed.dll` is replaced by pure C# P/Invoke, making IjwHost unnecessary.
+
+### Rejected: Managed Native Hooks
+
+An attempt was made to rewrite the C++ native hooks (GitHooksLoader, ReadObjectHook,
+PostIndexChangedHook, VirtualFileSystemHook) as a single managed NativeAOT executable
+dispatching by `argv[0]`. While functional, the C++ hooks are small, fast, and well-tested.
+The managed approach added unnecessary complexity without meaningful benefit. The C++ hooks
+are retained.
+
 ## Benchmark Results
 
 NativeAOT .NET 10 vs Production .NET Framework 4.7.1 (5 iterations each):

@@ -228,4 +228,10 @@ ModelManifest.xml
 .vscode/
 
 # ProjFS Kext Unit Test coverage results
-ProjFS.Mac/CoverageResult.txt*.txt
+ProjFS.Mac/CoverageResult.txt
+
+# Build/test artifacts that should not be committed
+*.nettrace
+benchmark-results*.md
+functional-test-*.txt
+*.bak

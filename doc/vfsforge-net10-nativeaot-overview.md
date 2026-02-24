@@ -109,6 +109,31 @@ Fix: `TypeInfoPropertyName` to disambiguate.
 - `UseShellExecute = true` for background mount process
 - Prevents GVFS.Mount.exe from inheriting test harness stdout pipe handle
 
+### Build System Centralization
+- `Directory.Build.props` sets `TargetFramework` for all C# projects
+- `Directory.Packages.props` manages all NuGet versions centrally
+- Individual csproj files no longer declare TFM or package versions
+- Only `GVFS.MSBuild.csproj` overrides TFM to `netstandard2.0`
+
+---
+
+# HTTP Performance: The NTLM Trap
+
+### Problem
+`SocketsHttpHandler` with `Credentials = DefaultCredentials` → **~400ms/request**
+(vs production's ~12ms/request)
+
+### Root Cause
+Setting transport-level credentials triggered unnecessary NTLM handshakes.
+The cache server accepts PAT/OAuth via `Authorization: Basic` header directly.
+NTLM adds zero value and costs ~400ms per connection setup.
+
+### Fix
+Use plain `SocketsHttpHandler` **without** `Credentials` or `ServerCredentials`.
+Auth handled per-request via the `Authorization` header.
+
+**Result:** ~14ms/request — matching .NET Framework production.
+
 ---
 
 # Phase 6: NativeAOT
@@ -123,11 +148,17 @@ Fix: `TypeInfoPropertyName` to disambiguate.
 - All 5 managed executables compile to native binaries
 - GVFS.exe: 14.5 MB native binary (no JIT, no .NET runtime)
 - Self-contained — zero external runtime dependencies
+- IjwHost.dll no longer needed (C++/CLI wrapper removed)
 
 ### Source-Gen JSON Context
 - All serialized types registered in `GVFSJsonContext`
 - `TypeInfoPropertyName` for disambiguating nested types
 - `DefaultJsonTypeInfoResolver` fallback for `Dictionary<string, object>`
+
+### Rejected: Managed Native Hooks
+- Attempted rewriting C++ hooks as single managed NativeAOT exe
+- Functional but added complexity without meaningful benefit
+- C++ hooks retained — small, fast, well-tested
 
 ---
 
@@ -155,7 +186,8 @@ NativeAOT .NET 10 vs Production .NET Framework 4.7.1:
 | Aspect | .NET Framework 4.7.1 | NativeAOT .NET 10 |
 |--------|---------------------|-------------------|
 | Runtime required | .NET Framework 4.7.1 | None (self-contained) |
-| VC++ Redist required | Yes (Ijwhost.dll) | No |
+| VC++ Redist required | Yes (Ijwhost.dll) | No (pure C# ProjFS) |
+| NTLM auth overhead | Hidden (~12ms via WinHTTP) | Eliminated (no NTLM) |
 | Startup time | ~54 ms (JIT) | ~15 ms (native) |
 | Binary type | IL + JIT | Native x64 |
 | GVFS.exe size | ~200 KB IL + runtime | 14.5 MB native |

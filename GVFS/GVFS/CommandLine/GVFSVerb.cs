@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Security;
 using System.Text;
+using System.Text.Json;
 
 namespace GVFS.CommandLine
 {
@@ -116,7 +117,7 @@ namespace GVFS.CommandLine
 
                         this.StartedByService = mountInternal.StartedByService;
                     }
-                    catch (System.Text.Json.JsonException e)
+                    catch (JsonException e)
                     {
                         this.ReportErrorAndExit("Failed to parse InternalParameters: {0}.\n {1}", value, e);
                     }

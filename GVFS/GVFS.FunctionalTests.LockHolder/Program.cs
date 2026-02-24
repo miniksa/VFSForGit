@@ -7,7 +7,7 @@ namespace GVFS.FunctionalTests.LockHolder
         public static int Main(string[] args)
         {
             var skipReleaseLockOption = new Option<bool>(
-                "--skip-release-lock", false)
+                "--skip-release-lock")
             { Description = "Skip releasing the GVFS lock when exiting the program." };
 
             var rootCommand = new RootCommand("Acquire and hold the GVFS lock for testing");

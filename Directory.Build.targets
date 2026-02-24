@@ -15,24 +15,6 @@
   <Import Project="$(MSBuildThisFileDirectory)GVFS\GVFS.MSBuild\GVFS.targets" />
 
   <!--
-    Copy ijwhost.dll for C++/CLI mixed-mode assembly support (ProjectedFSLib.Managed.dll).
-    On .NET Core, mixed-mode assemblies require ijwhost.dll in the output directory.
-  -->
-  <Target Name="_CopyIjwHost" AfterTargets="Build" Condition="'$(MSBuildProjectExtension)' == '.csproj' AND '$(OutputType)' == 'Exe'">
-    <ItemGroup>
-      <_IjwHostFile Include="$(NetCoreTargetingPackRoot)\Microsoft.NETCore.App.Host.win-x64\*\runtimes\win-x64\native\ijwhost.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_IjwHostFile->'%(FullPath)')" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" Condition="'@(_IjwHostFile)' != ''" />
-  </Target>
-
-  <Target Name="_CopyIjwHostPublish" AfterTargets="Publish" Condition="'$(MSBuildProjectExtension)' == '.csproj' AND '$(OutputType)' == 'Exe'">
-    <ItemGroup>
-      <_IjwHostFilePublish Include="$(NetCoreTargetingPackRoot)\Microsoft.NETCore.App.Host.win-x64\*\runtimes\win-x64\native\ijwhost.dll" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_IjwHostFilePublish->'%(FullPath)')" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" Condition="'@(_IjwHostFilePublish)' != ''" />
-  </Target>
-
-  <!--
     Copy native C++ hook executables and managed peer executables to GVFS.exe
     output directory. In a production install all binaries are co-located in one
     directory. During dev builds each project has its own output; this target
@@ -40,7 +22,7 @@
   -->
   <Target Name="_CopyNativeHooks" AfterTargets="Build" Condition="'$(MSBuildProjectName)' == 'GVFS'">
     <PropertyGroup>
-      <_ManagedOutFragment>bin\$(Configuration)\net10.0-windows10.0.17763.0\win-x64</_ManagedOutFragment>
+      <_ManagedOutFragment>bin\$(Configuration)\$(TargetFramework)\win-x64</_ManagedOutFragment>
     </PropertyGroup>
     <ItemGroup>
       <!-- Native C++ hooks (built separately with VS MSBuild) -->
