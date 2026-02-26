@@ -11,9 +11,11 @@ using GVFS.Virtualization.Projection;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace GVFS.Virtualization
 {
@@ -347,6 +349,183 @@ namespace GVFS.Virtualization
             }
 
             return string.IsNullOrEmpty(errorMessage);
+        }
+
+        /// <summary>
+        /// Lightweight pre-checkout dehydration: removes ModifiedPaths entries for
+        /// files that are clean (exist on disk but have no uncommitted changes),
+        /// deleting the physical files so ProjFS can re-project them as virtual entries.
+        ///
+        /// This shrinks the ModifiedPaths list that git receives via the
+        /// virtual-filesystem hook, causing git to set skip-worktree on those paths
+        /// and skip stat/rewrite operations during checkout — dramatically faster.
+        ///
+        /// Files in ModifiedPaths are "full" files that ProjFS no longer tracks as
+        /// placeholders. To dehydrate them we: (1) delete the physical file,
+        /// (2) remove from ModifiedPaths. ProjFS then re-projects the file path
+        /// from the git tree on next access.
+        ///
+        /// Safety: checkout already requires a clean working tree, so all tracked
+        /// files in ModifiedPaths match HEAD. We skip folder entries and .gitattributes.
+        ///
+        /// Must be called AFTER the GVFS lock is acquired but BEFORE git reads the
+        /// ModifiedPaths list via the virtual-filesystem hook.
+        /// </summary>
+        public PreCheckoutDehydrateResult TryPreCheckoutDehydrate()
+        {
+            Stopwatch timer = Stopwatch.StartNew();
+            int filesDehydrated = 0;
+            int filesSkipped = 0;
+            int filesFailed = 0;
+
+            try
+            {
+                // Get all current ModifiedPaths entries
+                List<string> allModifiedPaths = this.modifiedPaths.GetAllModifiedPaths().ToList();
+
+                // Identify file entries eligible for dehydration
+                List<string> pathsToDehydrate = new List<string>();
+                foreach (string modifiedPath in allModifiedPaths)
+                {
+                    // Skip folder entries (end with /)
+                    if (modifiedPath.EndsWith(GVFSConstants.GitPathSeparatorString))
+                    {
+                        continue;
+                    }
+
+                    // Skip the seed entry (.gitattributes)
+                    if (modifiedPath.Equals(GVFSConstants.SpecialGitFiles.GitAttributes, GVFSPlatform.Instance.Constants.PathComparison))
+                    {
+                        continue;
+                    }
+
+                    pathsToDehydrate.Add(modifiedPath);
+                }
+
+                if (pathsToDehydrate.Count == 0)
+                {
+                    timer.Stop();
+                    return new PreCheckoutDehydrateResult(
+                        success: true,
+                        filesDehydrated: 0,
+                        filesSkipped: 0,
+                        filesFailed: 0,
+                        elapsedMs: timer.ElapsedMilliseconds);
+                }
+
+                EventMetadata startMetadata = new EventMetadata();
+                startMetadata.Add("FilesToDehydrate", pathsToDehydrate.Count);
+                startMetadata.Add("TotalModifiedPaths", allModifiedPaths.Count);
+                this.context.Tracer.RelatedEvent(EventLevel.Informational, nameof(this.TryPreCheckoutDehydrate) + "_Start", startMetadata);
+
+                string workingDir = this.context.Enlistment.WorkingDirectoryBackingRoot;
+
+                int dehydrated = 0;
+                int skipped = 0;
+                int failed = 0;
+
+                Parallel.ForEach(
+                    pathsToDehydrate,
+                    new ParallelOptions { MaxDegreeOfParallelism = Math.Max(8, Environment.ProcessorCount) },
+                    (path) =>
+                    {
+                        try
+                        {
+                            // Convert git-style forward slashes to OS path separators
+                            string fullPath = Path.Combine(workingDir, path.Replace(GVFSConstants.GitPathSeparator, Path.DirectorySeparatorChar));
+                            if (File.Exists(fullPath))
+                            {
+                                // Remove read-only attribute if set (placeholders and checkout files often are)
+                                FileAttributes attrs = File.GetAttributes(fullPath);
+                                if ((attrs & FileAttributes.ReadOnly) != 0)
+                                {
+                                    File.SetAttributes(fullPath, attrs & ~FileAttributes.ReadOnly);
+                                }
+
+                                File.Delete(fullPath);
+                                Interlocked.Increment(ref dehydrated);
+                            }
+                            else
+                            {
+                                // File already gone (deleted by user or prior operation) — still remove from ModifiedPaths
+                                Interlocked.Increment(ref dehydrated);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Interlocked.Increment(ref failed);
+                            EventMetadata errorMetadata = this.CreateEventMetadata(path, ex);
+                            this.context.Tracer.RelatedWarning(errorMetadata, $"{nameof(this.TryPreCheckoutDehydrate)}: Failed to delete file");
+                        }
+                    });
+
+                filesDehydrated = dehydrated;
+                filesSkipped = skipped;
+                filesFailed = failed;
+
+                // Bulk-remove all successfully dehydrated paths from ModifiedPaths
+                if (filesDehydrated > 0)
+                {
+                    // Also remove from placeholder DB in case any entries exist
+                    foreach (string path in pathsToDehydrate)
+                    {
+                        this.modifiedPaths.TryRemove(path, isFolder: false, out bool _);
+                        this.placeholderDatabase.Remove(path);
+                    }
+
+                    // Also remove parent folder entries that now have no children
+                    // (This keeps ModifiedPaths minimal)
+                    HashSet<string> remainingPaths = new HashSet<string>(
+                        this.modifiedPaths.GetAllModifiedPaths(),
+                        GVFSPlatform.Instance.Constants.PathComparer);
+
+                    foreach (string modifiedPath in allModifiedPaths)
+                    {
+                        if (modifiedPath.EndsWith(GVFSConstants.GitPathSeparatorString) &&
+                            !modifiedPath.Equals(GVFSConstants.SpecialGitFiles.GitAttributes, GVFSPlatform.Instance.Constants.PathComparison))
+                        {
+                            // Check if any child still exists in ModifiedPaths
+                            bool hasChild = false;
+                            foreach (string remaining in remainingPaths)
+                            {
+                                if (remaining.StartsWith(modifiedPath, GVFSPlatform.Instance.Constants.PathComparison))
+                                {
+                                    hasChild = true;
+                                    break;
+                                }
+                            }
+
+                            if (!hasChild)
+                            {
+                                this.modifiedPaths.TryRemove(modifiedPath, isFolder: true, out bool _);
+                            }
+                        }
+                    }
+
+                    this.modifiedPaths.WriteAllEntriesAndFlush();
+                }
+            }
+            catch (Exception ex)
+            {
+                EventMetadata metadata = this.CreateEventMetadata(relativePath: null, exception: ex);
+                this.context.Tracer.RelatedError(metadata, $"{nameof(this.TryPreCheckoutDehydrate)} failed with exception");
+            }
+
+            timer.Stop();
+
+            EventMetadata endMetadata = new EventMetadata();
+            endMetadata.Add("FilesDehydrated", filesDehydrated);
+            endMetadata.Add("FilesSkipped", filesSkipped);
+            endMetadata.Add("FilesFailed", filesFailed);
+            endMetadata.Add("ElapsedMs", timer.ElapsedMilliseconds);
+            this.context.Tracer.RelatedEvent(EventLevel.Informational, nameof(this.TryPreCheckoutDehydrate) + "_Complete", endMetadata);
+
+            return new PreCheckoutDehydrateResult(
+                success: filesFailed == 0,
+                filesDehydrated: filesDehydrated,
+                filesSkipped: filesSkipped,
+                filesFailed: filesFailed,
+                elapsedMs: timer.ElapsedMilliseconds);
         }
 
         public void ForceIndexProjectionUpdate(bool invalidateProjection, bool invalidateModifiedPaths)
@@ -1037,6 +1216,24 @@ namespace GVFS.Virtualization
             {
                 Interlocked.Increment(ref this.count);
             }
+        }
+
+        public class PreCheckoutDehydrateResult
+        {
+            public PreCheckoutDehydrateResult(bool success, int filesDehydrated, int filesSkipped, int filesFailed, long elapsedMs)
+            {
+                this.Success = success;
+                this.FilesDehydrated = filesDehydrated;
+                this.FilesSkipped = filesSkipped;
+                this.FilesFailed = filesFailed;
+                this.ElapsedMs = elapsedMs;
+            }
+
+            public bool Success { get; }
+            public int FilesDehydrated { get; }
+            public int FilesSkipped { get; }
+            public int FilesFailed { get; }
+            public long ElapsedMs { get; }
         }
     }
 }

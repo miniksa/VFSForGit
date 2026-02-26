@@ -452,6 +452,25 @@ namespace GVFS.Mount
                 {
                     response = new NamedPipeMessages.AcquireLock.Response(NamedPipeMessages.AcquireLock.AcceptResult);
                     this.tracer.SetGitCommandSessionId(requester.GitCommandSessionId);
+
+                    // Pre-checkout dehydration: if this is a checkout command, dehydrate
+                    // placeholder files from ModifiedPaths before git reads the list.
+                    // This causes git to set skip-worktree on those paths, avoiding
+                    // expensive per-file stat and rewrite operations during checkout.
+                    GitCommandLineParser gitCommand = new GitCommandLineParser(requester.ParsedCommand);
+                    if (gitCommand.IsVerb(GitCommandLineParser.Verbs.Checkout))
+                    {
+                        FileSystemCallbacks.PreCheckoutDehydrateResult dehydrateResult = this.fileSystemCallbacks.TryPreCheckoutDehydrate();
+                        EventMetadata dehydrateMetadata = new EventMetadata();
+                        dehydrateMetadata.Add("FilesDehydrated", dehydrateResult.FilesDehydrated);
+                        dehydrateMetadata.Add("FilesSkipped", dehydrateResult.FilesSkipped);
+                        dehydrateMetadata.Add("FilesFailed", dehydrateResult.FilesFailed);
+                        dehydrateMetadata.Add("ElapsedMs", dehydrateResult.ElapsedMs);
+                        this.tracer.RelatedEvent(
+                            EventLevel.Informational,
+                            "PreCheckoutDehydrate",
+                            dehydrateMetadata);
+                    }
                 }
                 else if (existingExternalHolder == null)
                 {
