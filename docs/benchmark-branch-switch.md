@@ -101,3 +101,89 @@ The structured log field `CommitsAndTreesDownloadTimeMS` shows production GVFS s
 | **Working tree cleanliness** | Clean | Clean | **Both correct** |
 
 **Verdict: The NativeAOT port has no performance regression. It is significantly faster in all scenarios, with the most dramatic improvement (5x) in cold-cache branch switching where HTTP download performance dominates.**
+
+## Pre-Checkout Dehydration Results
+
+**Date:** 2026-02-26
+**Branch:** `user/miniksa/pre-checkout-dehydrate`
+
+### Background
+
+During checkout, git must `lstat()` and potentially rewrite every file in the ModifiedPaths database (files that have been opened/read/built during the enlistment's lifetime). On a mature enlistment with 61K+ ModifiedPaths entries, this serial I/O dominates checkout time — even with `checkout.workers=16`.
+
+Pre-checkout dehydration intercepts the GVFS lock acquisition for `git checkout` and:
+1. Deletes all ModifiedPaths files from disk in parallel (`File.Delete`, not ProjFS API)
+2. Removes them from the ModifiedPaths database
+3. ProjFS re-projects the files as virtual entries on next access
+4. Git sees near-empty ModifiedPaths → sets skip-worktree on everything → skips stat/rewrite
+
+### Methodology
+
+- **Build:** NativeAOT (.NET 10) with pre-checkout dehydrate prototype
+- **Enlistment:** `D:\os` with 61,721 ModifiedPaths entries (mature, post-build)
+- **Config:** `checkout.workers=16`
+- **Timing:** `[Diagnostics.Stopwatch]` around `git checkout`, GVFS structured logs for dehydration timing
+- **Verification:** Working tree clean (0 untracked, 0 modified) after every switch
+
+### Dehydration Phase (from GVFS structured log)
+
+| Metric | Value |
+|--------|-------|
+| Files dehydrated | 61,718 |
+| Files skipped | 0 |
+| Files failed | 0 |
+| Dehydration time | 4.4s |
+| ModifiedPaths before | 61,721 |
+| ModifiedPaths after | 3 |
+
+### Checkout Timing Comparison
+
+All NativeAOT with `checkout.workers=16`:
+
+| Direction | Without dehydrate (61K ModPaths) | With dehydrate (3 ModPaths) | Speedup |
+|-----------|--------------------------------|----------------------------|---------|
+| dev4 → corebuild | 49.6s | 32.1s (first), 26.7s (subsequent) | **1.5–1.9x** |
+| corebuild → dev4 | 72.6s | 19.7s | **3.7x** |
+
+### Fresh Clone Comparison
+
+For context, a fresh clone (`D:\os2`, 1 ModifiedPath, no dehydration needed):
+
+| Direction | Fresh clone (1 ModPath) | Dehydrated (3 ModPaths) |
+|-----------|------------------------|------------------------|
+| dev4 → corebuild | 26.9s | 26.7s |
+| corebuild → dev4 | 7.1s | 19.7s |
+
+The dehydrated enlistment approaches fresh-clone performance in the smaller direction and is within ~2.8x in the larger direction (the gap is from git still needing to write 189K differing files).
+
+### Cumulative Optimization Impact
+
+Starting from production GVFS (.NET Framework) with default settings:
+
+| Configuration | dev4→corebuild | corebuild→dev4 | Combined avg |
+|--------------|---------------|----------------|-------------|
+| Production (baseline) | 86.2s | 159.5s | **122.9s** |
+| + NativeAOT | 82.5s | 114.8s | **98.7s** (20% faster) |
+| + checkout.workers=16 | ~55s | ~61s | **~58s** (53% faster) |
+| + pre-checkout dehydrate | ~27s | ~20s | **~24s** (80% faster) |
+
+**Net result: Branch switching reduced from ~123s to ~24s — a 5.1x improvement.**
+
+### Working Tree Cleanliness
+
+| Check | Result |
+|-------|--------|
+| Before dehydrate | 0 untracked, 0 modified |
+| After dehydrate + checkout | 0 untracked, 0 modified |
+| After reverse checkout | 0 untracked, 0 modified |
+| After third round-trip | 0 untracked, 0 modified |
+
+### Unit Tests
+
+6 tests added in `PreCheckoutDehydrateTests.cs`, all passing:
+- `DehydrateDeletesFilesAndShrinkModifiedPaths`
+- `DehydratePreservesGitAttributes`
+- `DehydrateHandlesMissingFiles`
+- `DehydrateHandlesReadOnlyFiles`
+- `DehydrateSkipsFolderEntries`
+- `DehydrateReportsElapsedTime`
