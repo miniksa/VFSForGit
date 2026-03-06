@@ -2,12 +2,12 @@
 using GVFS.Common.FileSystem;
 using GVFS.Common.Tracing;
 using GVFS.DiskLayoutUpgrades;
-using GVFS.GVFlt;
 using GVFS.Virtualization.Background;
 using Microsoft.Isam.Esent;
 using Microsoft.Isam.Esent.Collections.Generic;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 
 namespace GVFS.Platform.Windows.DiskLayoutUpgrades
 {
@@ -119,8 +119,8 @@ namespace GVFS.Platform.Windows.DiskLayoutUpgrades
                 string newBackgroundOpsFolder = Path.Combine(dotGVFSRoot, GVFSConstants.DotGVFS.Databases.BackgroundFileSystemTasks);
                 try
                 {
-                    using (PersistentDictionary<long, GVFltCallbacks.BackgroundGitUpdate> oldBackgroundOps =
-                        new PersistentDictionary<long, GVFltCallbacks.BackgroundGitUpdate>(esentBackgroundOpsFolder))
+                    using (PersistentDictionary<long, LegacyBackgroundGitUpdate> oldBackgroundOps =
+                        new PersistentDictionary<long, LegacyBackgroundGitUpdate>(esentBackgroundOpsFolder))
                     {
                         string error;
                         FileSystemTaskQueue newBackgroundOps;
@@ -137,7 +137,7 @@ namespace GVFS.Platform.Windows.DiskLayoutUpgrades
 
                         using (newBackgroundOps)
                         {
-                            foreach (KeyValuePair<long, GVFltCallbacks.BackgroundGitUpdate> kvp in oldBackgroundOps)
+                            foreach (KeyValuePair<long, LegacyBackgroundGitUpdate> kvp in oldBackgroundOps)
                             {
                                 tracer.RelatedInfo("Copying ESENT entry: {0} = {1}", kvp.Key, kvp.Value);
                                 newBackgroundOps.EnqueueAndFlush(
@@ -176,6 +176,27 @@ namespace GVFS.Platform.Windows.DiskLayoutUpgrades
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Legacy struct for deserializing ESENT background operations from disk layout v9.
+        /// Previously lived in GVFS.GVFlt.GVFltCallbacks; inlined here to remove the GVFlt project dependency.
+        /// </summary>
+        public struct LegacyBackgroundGitUpdate
+        {
+            public enum OperationType
+            {
+                Invalid = 0,
+            }
+
+            public OperationType Operation { get; set; }
+            public string VirtualPath { get; set; }
+            public string OldVirtualPath { get; set; }
+
+            public override string ToString()
+            {
+                return JsonSerializer.Serialize(this);
+            }
         }
     }
 }
