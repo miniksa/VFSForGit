@@ -6,6 +6,7 @@
   <ItemGroup>
     <!-- Native bindings -->
     <PackageVersion Include="GVFS.ProjFS" Version="2019.411.1" />
+    <PackageVersion Include="Microsoft.Windows.ProjFS" Version="2.0.0" />
     <PackageVersion Include="GVFS.VCRuntime" Version="0.2.0-build" />
     <PackageVersion Include="LibGit2Sharp.NativeBinaries" Version="2.0.322" />
 

@@ -32,6 +32,7 @@
       <Link>ProjectedFSLib.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <PackageReference Include="Microsoft.Windows.ProjFS" />
   </ItemGroup>
 
   <ItemGroup>

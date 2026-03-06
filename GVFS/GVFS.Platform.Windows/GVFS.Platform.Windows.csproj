@@ -13,6 +13,7 @@
     <PackageReference Include="Microsoft.Database.ManagedEsent" />
     <PackageReference Include="Microsoft.Database.Collections.Generic" />
     <PackageReference Include="Microsoft.Database.Isam" />
+    <PackageReference Include="Microsoft.Windows.ProjFS" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" />
     <PackageReference Include="System.ServiceProcess.ServiceController" />
   </ItemGroup>

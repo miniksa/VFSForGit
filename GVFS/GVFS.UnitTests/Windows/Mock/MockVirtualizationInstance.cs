@@ -31,6 +31,10 @@ namespace GVFS.UnitTests.Windows.Mock
 
         public ConcurrentHashSet<string> CreatedPlaceholders { get; private set; }
 
+        public Guid VirtualizationInstanceId { get; } = Guid.NewGuid();
+        public int PlaceholderIdLength { get; } = 128;
+        public IRequiredCallbacks RequiredCallbacks => this.requiredCallbacks;
+
         public CancelCommandCallback OnCancelCommand { get; set; }
 
         public IRequiredCallbacks requiredCallbacks { get; set; }
